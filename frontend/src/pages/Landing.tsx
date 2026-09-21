@@ -1,5 +1,6 @@
 import Hero from "../components/Hero";
 import Kabar from "../components/Kabar";
+import StatistikPenduduk from "../components/StatistikPenduduk";
 import StrukturJabatan from "../components/StrukturJabatan";
 
 export default function Landing() {
@@ -11,8 +12,9 @@ export default function Landing() {
           <section aria-label="Berita">
             <Kabar />
           </section>
-          <section aria-label="Struktur jabatan kelurahan">
+          <section aria-label="Struktur jabatan dan statistik penduduk">
             <StrukturJabatan />
+            <StatistikPenduduk />
           </section>
         </div>
       </main>

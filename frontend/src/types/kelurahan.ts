@@ -16,18 +16,44 @@ export interface LayananItem {
 }
 
 export interface KabarItem {
+  id: string;
   jenis: string;
   tanggal: string;
   judul: string;
   ringkas: string;
+  deskripsi?: string;
+  gambar?: string;
+  /** Galeri foto tambahan yang tampil di bawah artikel, maksimal 5 gambar. */
+  gambarLain?: string[];
 }
 
 export interface PerangkatItem {
+  id: string;
   jabatan: string;
   nama: string;
+  /** Foto profil orang yang menjabat, opsional. */
+  foto?: string;
+  /** Nomor Induk Pegawai, opsional. */
+  nip?: string;
 }
 
 export interface StatItem {
   label: string;
   nilai: number;
+}
+
+/** Jumlah penduduk berdasarkan jenis kelamin, bisa diubah lewat admin. */
+export interface PendudukStat {
+  lakiLaki: number;
+  perempuan: number;
+}
+
+export interface BatasWilayah {
+  arah: string;
+  wilayah: string;
+}
+
+export interface FaktaGeografis {
+  label: string;
+  nilai: string;
 }

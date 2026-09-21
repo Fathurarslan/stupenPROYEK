@@ -101,7 +101,7 @@ export default function Header() {
           )}
         </ul>
 
-        <Link to="/Login">
+        <Link to="/login">
         <button
           type="button"
           className="cursor-pointer rounded-md bg-padi px-3 py-1.5 text-[16px] font-bold text-sawah hover:bg-padigelap hover:text-white max-[860px]:hidden"
