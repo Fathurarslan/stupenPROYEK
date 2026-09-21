@@ -74,11 +74,6 @@ export default function Login() {
               </button>
             </div>
           </form>
-          <div className="w-105 mx-auto mt-5 rounded-lg border border-abu/40 bg-white/60 px-4 py-3 text-[13px] text-tinta">
-            <p className="m-0 mb-1 font-semibold">Akun percobaan admin</p>
-            <p className="m-0">Email: {AKUN_DUMMY_ADMIN.email}</p>
-            <p className="m-0">Sandi: {AKUN_DUMMY_ADMIN.sandi}</p>
-          </div>
         </div>
       </div>
     </div>

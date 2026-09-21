@@ -11,7 +11,7 @@ export default function Hero() {
           <p className="mt-4.5 max-w-[34ch] text-[18px] opacity-90">
             Baca kabar terbaru kelurahan Sidoharjo dari satu tempat.
           </p>
-          <div className="mt-3 text-[14px] opacity-75">Jam kerja Senin s.d Jumat, <br></br>Pukul 07.30 - 15.00 WIB</div>
+          <div className="mt-3 text-[14px] opacity-75">Jam kerja Senin s.d Jumat<br></br>Pukul 07.30 - 15.00 WIB</div>
         </div>
         <PetakSawah />
       </div>
