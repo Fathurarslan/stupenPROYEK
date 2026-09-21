@@ -1,75 +1,122 @@
-# React + TypeScript + Vite
+# Information System of Gov
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Website profil dan informasi resmi untuk kebutuhan publik yang mencakup layanan, struktur organisasi, data wilayah, dan konten berita yang dikelola melalui panel admin.
 
-Currently, two official plugins are available:
+## Deskripsi Singkat
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Sistem Informasi Kelurahan adalah proyek web yang dibuat untuk menghadirkan informasi yang lebih mudah diakses oleh masyarakat, mulai dari profil lembaga, visi misi, kondisi geografis, struktur organisasi, hingga layanan dan berita terbaru. Proyek ini juga dilengkapi dengan fitur admin untuk mengelola konten berita dan data terkait secara lebih praktis.
 
-## React Compiler
+## Fitur
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Landing page yang informatif dan modern
+- Halaman profil organisasi dan visi misi
+- Informasi geografis dan wilayah
+- Struktur jabatan dan organisasi
+- Daftar layanan masyarakat
+- Halaman berita/kabar dengan detail artikel
+- Panel admin untuk mengelola:
+  - berita/kabar
+  - struktur organisasi
+  - data penduduk
+- Routing berbasis React untuk navigasi yang cepat
+- API backend sederhana berbasis Express untuk kebutuhan data dan integrasi
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Frontend
+- React + TypeScript
+- Vite
+- React Router DOM
+- Tailwind CSS
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Backend
+- Node.js
+- Express.js
+- TypeScript
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Database
+- Soon...
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Tools
+- npm
+- ESLint
+- TypeScript Compiler
 
+## Cara Menjalankan Frontend dan Backend
+
+Pastikan sistem sudah memiliki Node.js dan npm terinstall.
+
+### 1. Clone repository
+
+```bash
+git clone https://github.com/your-username/stupenPROYEK.git
+cd stupenPROYEK
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. Install dependency Frontend
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+cd frontend
+npm install
 ```
+
+### 3. Jalankan Frontend
+
+```bash
+npm run dev
+```
+
+Frontend akan berjalan di:
+
+```text
+http://localhost:5173
+```
+
+### 4. Install dependency Backend
+
+```bash
+cd ../backend
+npm install
+```
+
+### 5. Jalankan Backend
+
+```bash
+npm run dev
+```
+
+Backend akan berjalan di:
+
+```text
+http://localhost:5000
+```
+
+> Jika ingin menjalankan versi production, gunakan `npm run build` pada masing-masing project sesuai kebutuhan, lalu `npm run start` untuk backend dan preview atau build untuk frontend.
+
+## Cara Kontribusi
+
+1. Fork project ini ke akun GitHub Anda.
+2. Clone repository hasil fork.
+3. Buat branch baru untuk fitur atau perbaikan yang akan dikerjakan.
+4. Lakukan perubahan dengan format commit yang jelas.
+5. Jalankan aplikasi secara lokal sebelum membuat pull request.
+6. Buat pull request dengan menjelaskan perubahan yang dilakukan dan tujuan fitur/bug fix yang ditangani.
+
+Contoh:
+
+```bash
+git checkout -b feature/nama-fitur
+git add .
+git commit -m "feat: menambahkan fitur X"
+git push origin feature/nama-fitur
+```
+
+## Kontributor
+
+- Julian
+- Fathur
+- Daffa
+
+## Lisensi
+
+Proyek ini dibuat untuk kebutuhan pengembangan aplikasi website informasi dan administrasi yang bersifat internal/kolaboratif. Silakan sesuaikan lisensi jika proyek ini akan digunakan secara publik.
