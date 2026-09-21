@@ -49,7 +49,7 @@ export default function Geografis() {
         <p className="mb-5 max-w-[65ch] text-abu">
           Perkiraan proporsi penggunaan lahan di wilayah kelurahan.
         </p>
-        <div className="max-w-[520px]">
+        <div className="max-w-130">
           {PENGGUNAAN_LAHAN.map((p) => (
             <div className="mb-3.5" key={p.label}>
               <div className="mb-1.5 flex justify-between text-[14px]">

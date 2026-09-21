@@ -34,7 +34,7 @@ export default function AdminPenduduk() {
         otomatis.
       </p>
 
-      <form onSubmit={submit} className="max-w-[420px] rounded-lg border border-garis bg-white p-5">
+      <form onSubmit={submit} className="max-w-105 rounded-lg border border-garis bg-white p-5">
         <label className="mb-4 block">
           <span className="mb-1.5 block text-[13px] font-medium text-tinta">Laki-laki</span>
           <input

@@ -1,17 +1,17 @@
 import type { BatasWilayah, FaktaGeografis, StatItem } from "../types/kelurahan";
 
 export const FAKTA_GEOGRAFIS: FaktaGeografis[] = [
-  { label: "Luas wilayah", nilai: "±2,3 km²" },
+  { label: "Luas wilayah", nilai: "2,14 km²" },
   { label: "Ketinggian", nilai: "8 mdpl" },
-  { label: "Jarak ke pusat kabupaten", nilai: "±3 km" },
-  { label: "Jumlah RT / RW", nilai: "18 RT / 5 RW" },
+  { label: "Jarak ke pusat kabupaten", nilai: "1,1 km" },
+  { label: "Jumlah RT / RW", nilai: "21 RT / 6 RW" },
 ];
 
 export const BATAS_WILAYAH: BatasWilayah[] = [
-  { arah: "Utara", wilayah: "Kelurahan/Desa tetangga sebelah utara" },
-  { arah: "Selatan", wilayah: "Kelurahan/Desa tetangga sebelah selatan" },
-  { arah: "Timur", wilayah: "Kelurahan/Desa tetangga sebelah timur" },
-  { arah: "Barat", wilayah: "Kelurahan/Desa tetangga sebelah barat" },
+  { arah: "Utara", wilayah: "Kelurahan Tumenggungan dan Kelurahan Jetis" },
+  { arah: "Selatan", wilayah: "Desa Sidomukti" },
+  { arah: "Timur", wilayah: "Kelurahan Tlogoanyar" },
+  { arah: "Barat", wilayah: "Kelurahan Sukomulyo dan Desa Wajik" },
 ];
 
 export const PENGGUNAAN_LAHAN: StatItem[] = [

@@ -15,6 +15,7 @@ export default function Landing() {
           <section aria-label="Struktur jabatan dan statistik penduduk">
             <StrukturJabatan />
             <StatistikPenduduk />
+            <p className="text-[10px] w-full text-end">*Data ini bersifat sementara</p>
           </section>
         </div>
       </main>
