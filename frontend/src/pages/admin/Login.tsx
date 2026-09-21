@@ -1,7 +1,31 @@
-import { Link } from "react-router-dom";
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
+import { AKUN_DUMMY_ADMIN, masukAdmin, validasiLogin } from "../../lib/auth";
 
 export default function Login() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [sandi, setSandi] = useState("");
+  const [error, setError] = useState("");
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !sandi.trim()) {
+      setError("Email dan sandi wajib diisi.");
+      return;
+    }
+    // Belum ada backend/API admin, jadi login ini divalidasi ke akun
+    // dummy di lib/auth.ts. Ganti dengan pemanggilan API sungguhan
+    // begitu backend login tersedia.
+    if (!validasiLogin(email, sandi)) {
+      setError("Email atau sandi salah.");
+      return;
+    }
+    masukAdmin();
+    navigate("/admin");
+  };
+
   return (
     <div className="flex justify-center items-center min-h-screen bg-sawah">
       <div className="flex flex-row h-150 shadow-lg">
@@ -24,11 +48,13 @@ export default function Login() {
               </p>
             </Link>
           </div>
-          <form className="flex flex-col items-center">
+          <form className="flex flex-col items-center" onSubmit={submit}>
             <div className="flex flex-col font-medium">
               <label className="text-xl">Email</label>
               <input
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="rounded-lg bg-white w-105 py-3 px-5 mb-3 border border-abu"
               ></input>
             </div>
@@ -36,15 +62,23 @@ export default function Login() {
               <label className="text-xl">Sandi</label>
               <input
                 type="password"
+                value={sandi}
+                onChange={(e) => setSandi(e.target.value)}
                 className="rounded-lg bg-white w-105 py-3 px-5 border border-abu"
               ></input>
             </div>
+            {error && <p className="w-105 mt-3 text-sm text-[#b3261e]">{error}</p>}
             <div className="w-105 mt-3">
-              <button className="bg-tambak w-25 py-2 rounded-lg text-white hover:bg-blue-800 hover:cursor-pointer">
+              <button type="submit" className="bg-tambak w-25 py-2 rounded-lg text-white hover:bg-blue-800 hover:cursor-pointer">
                 Login
               </button>
             </div>
           </form>
+          <div className="w-105 mx-auto mt-5 rounded-lg border border-abu/40 bg-white/60 px-4 py-3 text-[13px] text-tinta">
+            <p className="m-0 mb-1 font-semibold">Akun percobaan admin</p>
+            <p className="m-0">Email: {AKUN_DUMMY_ADMIN.email}</p>
+            <p className="m-0">Sandi: {AKUN_DUMMY_ADMIN.sandi}</p>
+          </div>
         </div>
       </div>
     </div>
