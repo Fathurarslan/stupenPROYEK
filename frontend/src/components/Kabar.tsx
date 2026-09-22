@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useKabar } from "../hooks/useKabar";
+import { urlPenuh } from "../lib/api";
+import { formatTanggal } from "../lib/tanggal";
 import KabarCarousel from "./KabarCarousel";
 
 export default function Kabar() {
@@ -38,12 +40,12 @@ export default function Kabar() {
           >
             {utama.gambar && (
               <>
-                <img src={utama.gambar} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                <img src={urlPenuh(utama.gambar)} alt="" className="absolute inset-0 h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
               </>
             )}
             <div className="relative">
-              <span className="text-[13px] opacity-80">{utama.jenis}, {utama.tanggal}</span>
+              <span className="text-[13px] opacity-80">{utama.jenis}, {formatTanggal(utama.tanggal)}</span>
               <h3 className="mt-2 mb-2.5 text-[30px] leading-[1.1] hover:underline">{utama.judul}</h3>
               <p className="m-0">{utama.ringkas}</p>
             </div>
@@ -56,14 +58,14 @@ export default function Kabar() {
                 className="flex gap-3.5 border-b border-garis py-4.5 no-underline first:pt-0"
               >
                 {k.gambar ? (
-                  <img src={k.gambar} alt="" className="h-16 w-20 shrink-0 rounded-md object-cover" />
+                  <img src={urlPenuh(k.gambar)} alt="" className="h-16 w-20 shrink-0 rounded-md object-cover" />
                 ) : (
                   <div className="flex h-16 w-20 shrink-0 items-center justify-center rounded-md bg-kabut text-center text-[11px] text-abu">
                     Tanpa foto
                   </div>
                 )}
                 <div>
-                  <span className="text-[13px] text-abu">{k.jenis}, {k.tanggal}</span>
+                  <span className="text-[13px] text-abu">{k.jenis}, {formatTanggal(k.tanggal)}</span>
                   <h3 className="mt-1 mb-1.5 text-[19px] leading-[1.1] text-tinta hover:underline">{k.judul}</h3>
                   <p className="m-0 text-[15px] text-abu">{k.ringkas}</p>
                 </div>

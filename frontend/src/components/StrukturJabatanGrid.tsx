@@ -1,4 +1,5 @@
 import { useStruktur } from "../hooks/useStruktur";
+import { urlPenuh } from "../lib/api";
 import { ambilInisial } from "../lib/text";
 
 // Versi kartu dari struktur jabatan untuk halaman /struktur, maksimal
@@ -23,7 +24,7 @@ export default function StrukturJabatanGrid() {
           >
             {p.foto ? (
               <img
-                src={p.foto}
+                src={urlPenuh(p.foto)}
                 alt={p.nama}
                 className="aspect-[3/4] w-full max-w-[220px] shrink-0 rounded-lg object-cover"
               />

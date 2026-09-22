@@ -17,12 +17,15 @@ export interface LayananItem {
 
 export interface KabarItem {
   id: string;
-  jenis: string;
+  jenis: "Berita" | "Pengumuman";
+  /** Tanggal ISO (YYYY-MM-DD). Diformat ke bahasa Indonesia saat dirender. */
   tanggal: string;
   judul: string;
   ringkas: string;
-  deskripsi?: string;
-  gambar?: string;
+  /** Wajib: kolom deskripsi_lengkap di database bersifat NOT NULL. */
+  deskripsi: string;
+  /** Wajib: kolom gambar_utama di database bersifat NOT NULL. */
+  gambar: string;
   /** Galeri foto tambahan yang tampil di bawah artikel, maksimal 5 gambar. */
   gambarLain?: string[];
 }

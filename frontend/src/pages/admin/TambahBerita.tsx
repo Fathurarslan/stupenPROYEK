@@ -1,104 +1,168 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useKabar } from "../../hooks/useKabar";
+import { urlPenuh } from "../../lib/api";
+import {
+  hapusGambarTerunggah,
+  namaDariUrl,
+  UKURAN_MAKS_MB,
+  unggahBeberapaGambar,
+  unggahGambar,
+} from "../../lib/unggah";
 import type { KabarItem } from "../../types/kelurahan";
-
-const BULAN = [
-  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-];
 
 const MAKS_GAMBAR_LAIN = 5;
 
-function formatTanggal(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return iso;
-  return `${d} ${BULAN[m - 1]} ${y}`;
+function hariIni() {
+  const sekarang = new Date();
+  const bulan = String(sekarang.getMonth() + 1).padStart(2, "0");
+  const hari = String(sekarang.getDate()).padStart(2, "0");
+  return `${sekarang.getFullYear()}-${bulan}-${hari}`;
 }
 
-// Dibungkus dengan `key` di komponen luar supaya form ini dipasang ulang
-// setiap kali id di URL berganti, sehingga state awal bisa langsung
-// diturunkan dari data yang ada tanpa efek tambahan untuk menyalinnya.
+// Data kabar dimuat dari backend, jadi saat mode ubah form baru dipasang
+// setelah datanya tiba. `key` membuat form ter-pasang ulang tiap ganti id,
+// sehingga nilai awalnya bisa langsung diturunkan dari data tanpa efek tambahan.
 export default function TambahBerita() {
   const { id } = useParams();
-  return <FormKabar key={id ?? "baru"} id={id} />;
+  const { cariById, memuat, error } = useKabar();
+
+  if (error) {
+    return <p className="text-[14px] text-[#b3261e]">{error}</p>;
+  }
+
+  if (id && memuat) {
+    return <p className="text-abu">Memuat data kabar…</p>;
+  }
+
+  const awal = id ? cariById(id) : undefined;
+  if (id && !awal) {
+    return <p className="text-abu">Kabar yang ingin diubah tidak ditemukan.</p>;
+  }
+
+  return <FormKabar key={id ?? "baru"} id={id} awal={awal} />;
 }
 
-function FormKabar({ id }: { id?: string }) {
+function FormKabar({ id, awal }: { id?: string; awal?: KabarItem }) {
   const navigate = useNavigate();
-  const { cariById, tambah, perbarui } = useKabar();
+  const { tambah, perbarui } = useKabar();
   const modeUbah = Boolean(id);
-  const awal: KabarItem | undefined = id ? cariById(id) : undefined;
 
-  const [jenis, setJenis] = useState<"Berita" | "Pengumuman">(
-    awal?.jenis === "Pengumuman" ? "Pengumuman" : "Berita",
-  );
+  const [jenis, setJenis] = useState<"Berita" | "Pengumuman">(awal?.jenis ?? "Berita");
   const [judul, setJudul] = useState(awal?.judul ?? "");
-  const [tanggal, setTanggal] = useState(() =>
-    awal && /^\d{4}-\d{2}-\d{2}$/.test(awal.tanggal) ? awal.tanggal : new Date().toISOString().slice(0, 10),
-  );
+  const [tanggal, setTanggal] = useState(awal?.tanggal ?? hariIni());
   const [ringkas, setRingkas] = useState(awal?.ringkas ?? "");
   const [deskripsi, setDeskripsi] = useState(awal?.deskripsi ?? "");
   const [gambar, setGambar] = useState<string | undefined>(awal?.gambar);
   const [gambarLain, setGambarLain] = useState<string[]>(awal?.gambarLain ?? []);
   const [error, setError] = useState("");
+  const [mengunggah, setMengunggah] = useState(false);
+  const [menyimpan, setMenyimpan] = useState(false);
   const gambarInputRef = useRef<HTMLInputElement>(null);
   const gambarLainInputRef = useRef<HTMLInputElement>(null);
 
-  const ubahGambar = (file: File | null) => {
-    if (!file) {
-      setGambar(undefined);
-      return;
+  // Berkas yang diunggah selama form ini dibuka. Kalau salah satunya dibuang
+  // sebelum disimpan, berkasnya ikut dihapus di server supaya tidak menumpuk.
+  // Gambar bawaan dari kabar lama tidak masuk sini, jadi tidak ikut terhapus.
+  const diunggahSesiIni = useRef(new Set<string>());
+
+  const buangKalauBaruDiunggah = (url: string | undefined) => {
+    const nama = namaDariUrl(url);
+    if (nama && diunggahSesiIni.current.has(nama)) {
+      diunggahSesiIni.current.delete(nama);
+      void hapusGambarTerunggah(nama);
     }
-    const reader = new FileReader();
-    reader.onload = () => setGambar(reader.result as string);
-    reader.readAsDataURL(file);
   };
 
-  const tambahGambarLain = (files: FileList | null) => {
+  const ubahGambar = async (file: File | null) => {
+    if (!file) return;
+
+    setMengunggah(true);
+    setError("");
+    try {
+      const hasil = await unggahGambar(file);
+      diunggahSesiIni.current.add(hasil.nama_berkas);
+      buangKalauBaruDiunggah(gambar); // gambar lama diganti, bersihkan kalau perlu
+      setGambar(hasil.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mengunggah gambar.");
+    } finally {
+      setMengunggah(false);
+    }
+  };
+
+  const tambahGambarLain = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+
     const sisaSlot = MAKS_GAMBAR_LAIN - gambarLain.length;
-    Array.from(files)
-      .slice(0, sisaSlot)
-      .forEach((file) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          setGambarLain((prev) =>
-            prev.length >= MAKS_GAMBAR_LAIN ? prev : [...prev, reader.result as string],
-          );
-        };
-        reader.readAsDataURL(file);
-      });
+    const dipilih = Array.from(files).slice(0, sisaSlot);
+    if (dipilih.length === 0) return;
+
+    setMengunggah(true);
+    setError("");
+    try {
+      const hasil = await unggahBeberapaGambar(dipilih);
+      for (const berkas of hasil) diunggahSesiIni.current.add(berkas.nama_berkas);
+      setGambarLain((prev) => [...prev, ...hasil.map((b) => b.url)].slice(0, MAKS_GAMBAR_LAIN));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mengunggah gambar.");
+    } finally {
+      setMengunggah(false);
+    }
   };
 
   const hapusGambarLain = (index: number) => {
+    buangKalauBaruDiunggah(gambarLain[index]);
     setGambarLain((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const kirim = (e: FormEvent) => {
+  const kirim = async (e: FormEvent) => {
     e.preventDefault();
+    if (mengunggah) {
+      setError("Tunggu sampai unggahan gambar selesai.");
+      return;
+    }
     if (!judul.trim() || !ringkas.trim()) {
       setError("Judul dan ringkasan wajib diisi.");
       return;
     }
+    // Kolom gambar_utama dan deskripsi_lengkap di database bersifat NOT NULL,
+    // jadi keduanya dicegat di sini supaya pesannya jelas, bukan lewat error 400
+    if (!gambar) {
+      setError("Gambar utama wajib diunggah.");
+      return;
+    }
+    if (!deskripsi.trim()) {
+      setError("Deskripsi lengkap wajib diisi.");
+      return;
+    }
+
     setError("");
+    setMenyimpan(true);
 
     const payload = {
       jenis,
       judul: judul.trim(),
-      tanggal: formatTanggal(tanggal),
+      tanggal,
       ringkas: ringkas.trim(),
-      deskripsi: deskripsi.trim() || undefined,
+      deskripsi: deskripsi.trim(),
       gambar,
-      gambarLain: gambarLain.length > 0 ? gambarLain : undefined,
+      gambarLain,
     };
 
-    if (modeUbah && id) {
-      perbarui(id, payload);
-    } else {
-      tambah(payload);
+    try {
+      if (modeUbah && id) {
+        await perbarui(id, payload);
+      } else {
+        await tambah(payload);
+      }
+      // Sudah tersimpan di database, berkasnya bukan lagi milik sesi form ini
+      diunggahSesiIni.current.clear();
+      navigate("/admin/kabar");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal menyimpan kabar.");
+      setMenyimpan(false);
     }
-    navigate("/admin/kabar");
   };
 
   return (
@@ -110,7 +174,7 @@ function FormKabar({ id }: { id?: string }) {
         Isi formulir berikut untuk {modeUbah ? "memperbarui" : "menambahkan"} kabar kelurahan.
       </p>
 
-      <form onSubmit={kirim} className="max-w-[640px]">
+      <form onSubmit={(e) => void kirim(e)} className="max-w-[640px]">
         <div className="mb-5">
           <span className="mb-2 block text-[14px] font-medium text-tinta">Jenis</span>
           <div className="flex gap-1.5">
@@ -150,32 +214,46 @@ function FormKabar({ id }: { id?: string }) {
         </label>
 
         <div className="mb-5">
-          <span className="mb-1.5 block text-[14px] font-medium text-tinta">Gambar</span>
+          <span className="mb-1.5 block text-[14px] font-medium text-tinta">Gambar utama (wajib)</span>
           <div className="flex items-center gap-3">
             <button
               type="button"
+              disabled={mengunggah}
               onClick={() => gambarInputRef.current?.click()}
-              className="cursor-pointer rounded-md border-0 bg-sawah px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-daun"
+              className="cursor-pointer rounded-md border-0 bg-sawah px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-daun disabled:cursor-wait disabled:opacity-60"
             >
-              Pilih Gambar
+              {mengunggah ? "Mengunggah…" : "Pilih Gambar"}
             </button>
             <span className="text-[13px] text-abu">
               {gambar ? "Gambar terpasang" : "Belum ada gambar dipilih"}
             </span>
           </div>
+          <p className="mt-1.5 text-[12px] text-abu">
+            JPG, PNG, WEBP, atau GIF. Maksimal {UKURAN_MAKS_MB} MB per gambar.
+          </p>
           <input
             ref={gambarInputRef}
             type="file"
-            accept="image/*"
-            onChange={(e) => ubahGambar(e.target.files?.[0] ?? null)}
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={(e) => {
+              void ubahGambar(e.target.files?.[0] ?? null);
+              e.target.value = "";
+            }}
             className="hidden"
           />
           {gambar && (
             <div className="mt-3 flex items-center gap-3">
-              <img src={gambar} alt="Pratinjau gambar" className="h-24 w-36 rounded-lg object-cover" />
+              <img
+                src={urlPenuh(gambar)}
+                alt="Pratinjau gambar"
+                className="h-24 w-36 rounded-lg object-cover"
+              />
               <button
                 type="button"
-                onClick={() => setGambar(undefined)}
+                onClick={() => {
+                  buangKalauBaruDiunggah(gambar);
+                  setGambar(undefined);
+                }}
                 className="cursor-pointer text-[13px] text-[#b3261e]"
               >
                 Hapus gambar
@@ -195,10 +273,10 @@ function FormKabar({ id }: { id?: string }) {
             <button
               type="button"
               onClick={() => gambarLainInputRef.current?.click()}
-              disabled={gambarLain.length >= MAKS_GAMBAR_LAIN}
+              disabled={mengunggah || gambarLain.length >= MAKS_GAMBAR_LAIN}
               className="cursor-pointer rounded-md border-0 bg-sawah px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-daun disabled:pointer-events-none disabled:opacity-50"
             >
-              Pilih Gambar
+              {mengunggah ? "Mengunggah…" : "Pilih Gambar"}
             </button>
             <span className="text-[13px] text-abu">
               {gambarLain.length >= MAKS_GAMBAR_LAIN
@@ -209,11 +287,11 @@ function FormKabar({ id }: { id?: string }) {
           <input
             ref={gambarLainInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/gif"
             multiple
-            disabled={gambarLain.length >= MAKS_GAMBAR_LAIN}
+            disabled={mengunggah || gambarLain.length >= MAKS_GAMBAR_LAIN}
             onChange={(e) => {
-              tambahGambarLain(e.target.files);
+              void tambahGambarLain(e.target.files);
               e.target.value = "";
             }}
             className="hidden"
@@ -222,7 +300,7 @@ function FormKabar({ id }: { id?: string }) {
             <div className="mt-3 grid grid-cols-5 gap-2 max-[480px]:grid-cols-3">
               {gambarLain.map((src, i) => (
                 <div key={i} className="relative">
-                  <img src={src} alt={`Pratinjau gambar lain ${i + 1}`} className="aspect-square w-full rounded-lg object-cover" />
+                  <img src={urlPenuh(src)} alt={`Pratinjau gambar lain ${i + 1}`} className="aspect-square w-full rounded-lg object-cover" />
                   <button
                     type="button"
                     onClick={() => hapusGambarLain(i)}
@@ -255,7 +333,7 @@ function FormKabar({ id }: { id?: string }) {
             onChange={(e) => setDeskripsi(e.target.value)}
             rows={6}
             className="w-full rounded-lg border border-garis bg-white px-3.5 py-2.5 text-[14px]"
-            placeholder="Isi lengkap berita atau pengumuman (opsional)"
+            placeholder="Isi lengkap berita atau pengumuman (wajib diisi)"
           />
         </label>
 
@@ -264,9 +342,10 @@ function FormKabar({ id }: { id?: string }) {
         <div className="flex gap-3">
           <button
             type="submit"
-            className="cursor-pointer rounded-md bg-sawah px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-daun"
+            disabled={mengunggah || menyimpan}
+            className="cursor-pointer rounded-md bg-sawah px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-daun disabled:cursor-wait disabled:opacity-60"
           >
-            Simpan
+            {menyimpan ? "Menyimpan…" : "Simpan"}
           </button>
           <button
             type="button"

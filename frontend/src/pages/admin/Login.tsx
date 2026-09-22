@@ -1,29 +1,35 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
-import { AKUN_DUMMY_ADMIN, masukAdmin, validasiLogin } from "../../lib/auth";
+import { login } from "../../lib/auth";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [sandi, setSandi] = useState("");
   const [error, setError] = useState("");
+  const [mengirim, setMengirim] = useState(false);
 
-  const submit = (e: FormEvent) => {
+  // Halaman yang tadi ingin dibuka sebelum dialihkan ke login (diisi AdminGuard)
+  const tujuan = (location.state as { dari?: string } | null)?.dari ?? "/admin";
+
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !sandi.trim()) {
       setError("Email dan sandi wajib diisi.");
       return;
     }
-    // Belum ada backend/API admin, jadi login ini divalidasi ke akun
-    // dummy di lib/auth.ts. Ganti dengan pemanggilan API sungguhan
-    // begitu backend login tersedia.
-    if (!validasiLogin(email, sandi)) {
-      setError("Email atau sandi salah.");
-      return;
+
+    setMengirim(true);
+    setError("");
+    try {
+      await login(email, sandi);
+      navigate(tujuan, { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login gagal.");
+      setMengirim(false);
     }
-    masukAdmin();
-    navigate("/admin");
   };
 
   return (
@@ -48,14 +54,16 @@ export default function Login() {
               </p>
             </Link>
           </div>
-          <form className="flex flex-col items-center" onSubmit={submit}>
+          <form className="flex flex-col items-center" onSubmit={(e) => void submit(e)}>
             <div className="flex flex-col font-medium">
               <label className="text-xl">Email</label>
               <input
                 type="email"
                 value={email}
+                autoComplete="username"
+                disabled={mengirim}
                 onChange={(e) => setEmail(e.target.value)}
-                className="rounded-lg bg-white w-105 py-3 px-5 mb-3 border border-abu"
+                className="rounded-lg bg-white w-105 py-3 px-5 mb-3 border border-abu disabled:opacity-60"
               ></input>
             </div>
             <div className="flex flex-col font-medium">
@@ -63,14 +71,20 @@ export default function Login() {
               <input
                 type="password"
                 value={sandi}
+                autoComplete="current-password"
+                disabled={mengirim}
                 onChange={(e) => setSandi(e.target.value)}
-                className="rounded-lg bg-white w-105 py-3 px-5 border border-abu"
+                className="rounded-lg bg-white w-105 py-3 px-5 border border-abu disabled:opacity-60"
               ></input>
             </div>
             {error && <p className="w-105 mt-3 text-sm text-[#b3261e]">{error}</p>}
             <div className="w-105 mt-3">
-              <button type="submit" className="bg-tambak w-25 py-2 rounded-lg text-white hover:bg-blue-800 hover:cursor-pointer">
-                Login
+              <button
+                type="submit"
+                disabled={mengirim}
+                className="bg-tambak w-25 py-2 rounded-lg text-white hover:bg-blue-800 hover:cursor-pointer disabled:cursor-wait disabled:opacity-60"
+              >
+                {mengirim ? "Masuk…" : "Login"}
               </button>
             </div>
           </form>

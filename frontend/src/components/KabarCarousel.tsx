@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useKabar } from "../hooks/useKabar";
+import { urlPenuh } from "../lib/api";
+import { formatTanggal } from "../lib/tanggal";
 
 const WARNA_SLIDE = ["bg-tambak", "bg-sawah", "bg-daun", "bg-padigelap"];
 
@@ -36,13 +38,13 @@ export default function KabarCarousel() {
       >
         {item.gambar && (
           <>
-            <img src={item.gambar} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <img src={urlPenuh(item.gambar)} alt="" className="absolute inset-0 h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
           </>
         )}
         <div className="relative">
           <span className="text-[13px] opacity-80">
-            {item.jenis}, {item.tanggal}
+            {item.jenis}, {formatTanggal(item.tanggal)}
           </span>
           <h3 className="mt-2 mb-1 text-[26px] leading-[1.1]">{item.judul}</h3>
           <p className="m-0 max-w-[60ch] text-[15px] opacity-90">{item.ringkas}</p>
