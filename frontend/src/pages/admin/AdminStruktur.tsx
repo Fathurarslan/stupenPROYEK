@@ -1,19 +1,30 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useStruktur } from "../../hooks/useStruktur";
+import { urlPenuh } from "../../lib/api";
 import { ambilInisial } from "../../lib/text";
-
-function bacaFoto(file: File | null, set: (v: string | undefined) => void) {
-  if (!file) {
-    set(undefined);
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = () => set(reader.result as string);
-  reader.readAsDataURL(file);
-}
+import { UKURAN_MAKS_MB, unggahGambar } from "../../lib/unggah";
 
 export default function AdminStruktur() {
-  const { perangkat, tambah, perbarui, hapus } = useStruktur();
+  const { perangkat, memuat, error, tambah, perbarui, hapus } = useStruktur();
+  const [errorFoto, setErrorFoto] = useState("");
+  const [mengunggah, setMengunggah] = useState(false);
+  const [menyimpan, setMenyimpan] = useState(false);
+
+  // Foto diunggah ke backend, yang disimpan hanya path-nya (/upload/xxx.jpg).
+  // Sebelumnya foto disimpan sebagai base64 di localStorage, yang cepat penuh.
+  const pilihFoto = async (file: File | null, set: (v: string | undefined) => void) => {
+    if (!file) return;
+    setMengunggah(true);
+    setErrorFoto("");
+    try {
+      const hasil = await unggahGambar(file);
+      set(hasil.url);
+    } catch (err) {
+      setErrorFoto(err instanceof Error ? err.message : "Gagal mengunggah foto.");
+    } finally {
+      setMengunggah(false);
+    }
+  };
 
   const [jabatanBaru, setJabatanBaru] = useState("");
   const [namaBaru, setNamaBaru] = useState("");
@@ -28,19 +39,28 @@ export default function AdminStruktur() {
   const [editFoto, setEditFoto] = useState<string | undefined>(undefined);
   const editFotoRef = useRef<HTMLInputElement>(null);
 
-  const submitTambah = (e: FormEvent) => {
+  const submitTambah = async (e: FormEvent) => {
     e.preventDefault();
     if (!jabatanBaru.trim() || !namaBaru.trim()) return;
-    tambah({
-      jabatan: jabatanBaru.trim(),
-      nama: namaBaru.trim(),
-      nip: nipBaru.trim() || undefined,
-      foto: fotoBaru,
-    });
-    setJabatanBaru("");
-    setNamaBaru("");
-    setNipBaru("");
-    setFotoBaru(undefined);
+
+    setMenyimpan(true);
+    setErrorFoto("");
+    try {
+      await tambah({
+        jabatan: jabatanBaru.trim(),
+        nama: namaBaru.trim(),
+        nip: nipBaru.trim() || undefined,
+        foto: fotoBaru,
+      });
+      setJabatanBaru("");
+      setNamaBaru("");
+      setNipBaru("");
+      setFotoBaru(undefined);
+    } catch (err) {
+      setErrorFoto(err instanceof Error ? err.message : "Gagal menyimpan jabatan.");
+    } finally {
+      setMenyimpan(false);
+    }
   };
 
   const mulaiEdit = (id: string, jabatan: string, nama: string, nip?: string, foto?: string) => {
@@ -51,19 +71,33 @@ export default function AdminStruktur() {
     setEditFoto(foto);
   };
 
-  const simpanEdit = (id: string) => {
+  const simpanEdit = async (id: string) => {
     if (!editJabatan.trim() || !editNama.trim()) return;
-    perbarui(id, {
-      jabatan: editJabatan.trim(),
-      nama: editNama.trim(),
-      nip: editNip.trim() || undefined,
-      foto: editFoto,
-    });
-    setEditId(null);
+
+    setMenyimpan(true);
+    setErrorFoto("");
+    try {
+      await perbarui(id, {
+        jabatan: editJabatan.trim(),
+        nama: editNama.trim(),
+        nip: editNip.trim() || undefined,
+        foto: editFoto,
+      });
+      setEditId(null);
+    } catch (err) {
+      setErrorFoto(err instanceof Error ? err.message : "Gagal menyimpan perubahan.");
+    } finally {
+      setMenyimpan(false);
+    }
   };
 
-  const hapusItem = (id: string, nama: string) => {
-    if (window.confirm(`Hapus "${nama}" dari struktur jabatan?`)) hapus(id);
+  const hapusItem = async (id: string, nama: string) => {
+    if (!window.confirm(`Hapus "${nama}" dari struktur jabatan?`)) return;
+    try {
+      await hapus(id);
+    } catch (err) {
+      setErrorFoto(err instanceof Error ? err.message : "Gagal menghapus jabatan.");
+    }
   };
 
   return (
@@ -71,13 +105,19 @@ export default function AdminStruktur() {
       <h1 className="font-heading text-[clamp(24px,3vw,32px)] leading-[1.1] text-sawah">Struktur Jabatan</h1>
       <p className="mt-1.5 mb-8 text-abu">Kelola perangkat yang melayani warga Sidoharjo.</p>
 
+      {error && (
+        <p className="mb-4 rounded-md border border-[#b3261e]/30 bg-[#b3261e]/5 p-3 text-[14px] text-[#b3261e]">
+          {error}
+        </p>
+      )}
+
       <form
-        onSubmit={submitTambah}
+        onSubmit={(e) => void submitTambah(e)}
         className="mb-8 flex flex-wrap items-end gap-4 rounded-lg border border-garis bg-white p-4"
       >
         <div className="flex items-center gap-3">
           {fotoBaru ? (
-            <img src={fotoBaru} alt="Pratinjau foto" className="h-14 w-14 rounded-full object-cover" />
+            <img src={urlPenuh(fotoBaru)} alt="Pratinjau foto" className="h-14 w-14 rounded-full object-cover" />
           ) : (
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-kabut text-[11px] text-abu">
               Foto
@@ -86,10 +126,11 @@ export default function AdminStruktur() {
           <div className="flex flex-col items-start gap-1">
             <button
               type="button"
+              disabled={mengunggah}
               onClick={() => fotoBaruRef.current?.click()}
-              className="cursor-pointer rounded-md border-0 bg-sawah px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-daun"
+              className="cursor-pointer rounded-md border-0 bg-sawah px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-daun disabled:cursor-wait disabled:opacity-60"
             >
-              Pilih Foto
+              {mengunggah ? "Mengunggah…" : "Pilih Foto"}
             </button>
             {fotoBaru && (
               <button
@@ -104,8 +145,11 @@ export default function AdminStruktur() {
           <input
             ref={fotoBaruRef}
             type="file"
-            accept="image/*"
-            onChange={(e) => bacaFoto(e.target.files?.[0] ?? null, setFotoBaru)}
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={(e) => {
+              void pilihFoto(e.target.files?.[0] ?? null, setFotoBaru);
+              e.target.value = "";
+            }}
             className="hidden"
           />
         </div>
@@ -141,10 +185,15 @@ export default function AdminStruktur() {
         </label>
         <button
           type="submit"
-          className="cursor-pointer rounded-md bg-sawah px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-daun"
+          disabled={mengunggah || menyimpan}
+          className="cursor-pointer rounded-md bg-sawah px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-daun disabled:cursor-wait disabled:opacity-60"
         >
-          + Tambah
+          {menyimpan ? "Menyimpan…" : "+ Tambah"}
         </button>
+        <p className="w-full text-[12px] text-abu">
+          Foto: JPG, PNG, WEBP, atau GIF. Maksimal {UKURAN_MAKS_MB} MB.
+        </p>
+        {errorFoto && <p className="w-full text-[13px] text-[#b3261e]">{errorFoto}</p>}
       </form>
 
       <div className="overflow-x-auto rounded-lg border border-garis bg-white">
@@ -165,7 +214,7 @@ export default function AdminStruktur() {
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
                         {editFoto ? (
-                          <img src={editFoto} alt="Pratinjau foto" className="h-10 w-10 rounded-full object-cover" />
+                          <img src={urlPenuh(editFoto)} alt="Pratinjau foto" className="h-10 w-10 rounded-full object-cover" />
                         ) : (
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-kabut text-[11px] text-abu">
                             Foto
@@ -173,16 +222,20 @@ export default function AdminStruktur() {
                         )}
                         <button
                           type="button"
+                          disabled={mengunggah}
                           onClick={() => editFotoRef.current?.click()}
-                          className="cursor-pointer rounded-md border border-garis px-2.5 py-1.5 text-[12px] text-tinta hover:border-sawah"
+                          className="cursor-pointer rounded-md border border-garis px-2.5 py-1.5 text-[12px] text-tinta hover:border-sawah disabled:cursor-wait disabled:opacity-60"
                         >
-                          Ubah
+                          {mengunggah ? "…" : "Ubah"}
                         </button>
                         <input
                           ref={editFotoRef}
                           type="file"
-                          accept="image/*"
-                          onChange={(e) => bacaFoto(e.target.files?.[0] ?? null, setEditFoto)}
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          onChange={(e) => {
+                            void pilihFoto(e.target.files?.[0] ?? null, setEditFoto);
+                            e.target.value = "";
+                          }}
                           className="hidden"
                         />
                       </div>
@@ -212,7 +265,7 @@ export default function AdminStruktur() {
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          onClick={() => simpanEdit(p.id)}
+                          onClick={() => void simpanEdit(p.id)}
                           className="cursor-pointer rounded-md bg-sawah px-3 py-1.5 text-[13px] font-medium text-white hover:bg-daun"
                         >
                           Simpan
@@ -231,7 +284,7 @@ export default function AdminStruktur() {
                   <>
                     <td className="px-4 py-3">
                       {p.foto ? (
-                        <img src={p.foto} alt={p.nama} className="h-10 w-10 rounded-full object-cover" />
+                        <img src={urlPenuh(p.foto)} alt={p.nama} className="h-10 w-10 rounded-full object-cover" />
                       ) : (
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-kabut text-[11px] text-abu">
                           {ambilInisial(p.nama)}
@@ -254,7 +307,7 @@ export default function AdminStruktur() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => hapusItem(p.id, p.nama)}
+                          onClick={() => void hapusItem(p.id, p.nama)}
                           className="cursor-pointer rounded-md border border-transparent px-3 py-1.5 text-[13px] text-[#b3261e] hover:bg-[#b3261e]/10"
                         >
                           Hapus
@@ -268,7 +321,7 @@ export default function AdminStruktur() {
             {perangkat.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-abu">
-                  Belum ada data.
+                  {memuat ? "Memuat data…" : "Belum ada data."}
                 </td>
               </tr>
             )}

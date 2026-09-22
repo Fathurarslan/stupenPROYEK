@@ -1,15 +1,22 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useKabar } from "../../hooks/useKabar";
+import { urlPenuh } from "../../lib/api";
+import { formatTanggal } from "../../lib/tanggal";
 
 export default function AdminBerita() {
-  const { kabar, hapus } = useKabar();
+  const { kabar, memuat, error, hapus } = useKabar();
   const [filter, setFilter] = useState("Semua");
+  const [errorHapus, setErrorHapus] = useState("");
   const data = kabar.filter((k) => filter === "Semua" || k.jenis === filter);
 
-  const hapusItem = (id: string, judul: string) => {
-    if (window.confirm(`Hapus "${judul}"? Tindakan ini tidak bisa dibatalkan.`)) {
-      hapus(id);
+  const hapusItem = async (id: string, judul: string) => {
+    if (!window.confirm(`Hapus "${judul}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setErrorHapus("");
+    try {
+      await hapus(id);
+    } catch (err) {
+      setErrorHapus(err instanceof Error ? err.message : "Gagal menghapus kabar.");
     }
   };
 
@@ -29,6 +36,12 @@ export default function AdminBerita() {
           + Tambah
         </Link>
       </div>
+
+      {(error || errorHapus) && (
+        <p className="mb-4 rounded-md border border-[#b3261e]/30 bg-[#b3261e]/5 p-3 text-[14px] text-[#b3261e]">
+          {error || errorHapus}
+        </p>
+      )}
 
       <div className="mb-5 flex gap-1.5">
         {["Semua", "Berita", "Pengumuman"].map((t) => (
@@ -60,7 +73,7 @@ export default function AdminBerita() {
               <tr key={k.id} className="border-t border-garis align-top">
                 <td className="px-4 py-3">
                   {k.gambar ? (
-                    <img src={k.gambar} alt="" className="h-12 w-16 rounded object-cover" />
+                    <img src={urlPenuh(k.gambar)} alt="" className="h-12 w-16 rounded object-cover" />
                   ) : (
                     <div className="flex h-12 w-16 items-center justify-center rounded bg-kabut text-center text-[11px] text-abu">
                       Tanpa foto
@@ -76,7 +89,7 @@ export default function AdminBerita() {
                     {k.jenis}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-abu">{k.tanggal}</td>
+                <td className="px-4 py-3 whitespace-nowrap text-abu">{formatTanggal(k.tanggal)}</td>
                 <td className="px-4 py-3 font-medium text-tinta">{k.judul}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
@@ -88,7 +101,7 @@ export default function AdminBerita() {
                     </Link>
                     <button
                       type="button"
-                      onClick={() => hapusItem(k.id, k.judul)}
+                      onClick={() => void hapusItem(k.id, k.judul)}
                       className="cursor-pointer rounded-md border border-transparent px-3 py-1.5 text-[13px] text-[#b3261e] hover:bg-[#b3261e]/10"
                     >
                       Hapus
@@ -100,7 +113,7 @@ export default function AdminBerita() {
             {data.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-abu">
-                  Belum ada data.
+                  {memuat ? "Memuat data…" : "Belum ada data."}
                 </td>
               </tr>
             )}

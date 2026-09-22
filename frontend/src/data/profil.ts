@@ -1,12 +1,7 @@
-import type { FaktaGeografis, PerangkatItem } from "../types/kelurahan";
+import type { FaktaGeografis } from "../types/kelurahan";
 
-export const PERANGKAT: PerangkatItem[] = [
-  { id: "perangkat-1", jabatan: "Lurah", nama: "Nama Lurah" },
-  { id: "perangkat-2", jabatan: "Sekretaris Kelurahan", nama: "Nama Sekretaris" },
-  { id: "perangkat-3", jabatan: "Kasi Pemerintahan", nama: "Nama Pejabat" },
-  { id: "perangkat-4", jabatan: "Kasi Kesejahteraan Sosial", nama: "Nama Pejabat" },
-  { id: "perangkat-5", jabatan: "Kasi Pembangunan", nama: "Nama Pejabat" },
-];
+// Daftar perangkat kelurahan tidak lagi di sini: datanya sekarang berasal dari
+// tabel struktur_jabatan lewat useStruktur().
 
 // Sumber: Tabel 2.1 Profil Kelurahan Sidoharjo
 export const IDENTITAS_KELURAHAN: FaktaGeografis[] = [

@@ -1,10 +1,30 @@
 import { Link, useParams } from "react-router-dom";
 import { useKabar } from "../hooks/useKabar";
+import { urlPenuh } from "../lib/api";
+import { formatTanggal } from "../lib/tanggal";
 
 export default function KabarDetail() {
   const { id } = useParams();
-  const { kabar } = useKabar();
+  const { kabar, memuat, error } = useKabar();
   const item = kabar.find((k) => k.id === id);
+
+  // Data datang dari backend, jadi jangan bilang "tidak ditemukan"
+  // sebelum pemuatannya selesai
+  if (memuat) {
+    return (
+      <main className="wrap py-18">
+        <p className="text-abu">Memuat kabar…</p>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="wrap py-18">
+        <p className="text-[#b3261e]">{error}</p>
+      </main>
+    );
+  }
 
   if (!item) {
     return (
@@ -39,11 +59,11 @@ export default function KabarDetail() {
         <h1 className="font-heading mt-3 mb-2 text-[clamp(26px,4vw,38px)] leading-[1.15] text-sawah">
           {item.judul}
         </h1>
-        <p className="mb-6 text-[14px] text-abu">{item.tanggal}</p>
+        <p className="mb-6 text-[14px] text-abu">{formatTanggal(item.tanggal)}</p>
 
         {item.gambar ? (
           <img
-            src={item.gambar}
+            src={urlPenuh(item.gambar)}
             alt={item.judul}
             className="mb-6 max-h-[420px] w-full rounded-[14px] object-cover"
           />
@@ -66,7 +86,7 @@ export default function KabarDetail() {
               {item.gambarLain.map((src, i) => (
                 <img
                   key={i}
-                  src={src}
+                  src={urlPenuh(src)}
                   alt={`${item.judul} - foto ${i + 1}`}
                   className="aspect-[4/3] w-full rounded-lg object-cover"
                 />
@@ -87,7 +107,7 @@ export default function KabarDetail() {
                 className="block border-b border-garis py-4 no-underline first:pt-0 hover:bg-kabut/60"
               >
                 <span className="text-[13px] text-abu">
-                  {k.jenis}, {k.tanggal}
+                  {k.jenis}, {formatTanggal(k.tanggal)}
                 </span>
                 <h3 className="mt-1 text-[16px] text-tinta">{k.judul}</h3>
               </Link>

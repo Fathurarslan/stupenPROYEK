@@ -1,5 +1,6 @@
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { keluarAdmin } from "../../lib/auth";
+import { Link, NavLink, Outlet } from "react-router-dom";
+import { useAdmin } from "./KonteksAdmin";
+import TombolKeluar from "./TombolKeluar";
 
 const MENU = [
   { label: "Dashboard", to: "/admin", end: true },
@@ -9,7 +10,7 @@ const MENU = [
 ];
 
 export default function AdminLayout() {
-  const navigate = useNavigate();
+  const admin = useAdmin();
 
   return (
     <div className="flex min-h-screen bg-kabut max-[860px]:flex-col">
@@ -17,6 +18,9 @@ export default function AdminLayout() {
         <div className="px-5 py-6">
           <div className="font-heading text-[18px]">Admin Kelurahan</div>
           <div className="text-[13px] opacity-70">Sidoharjo</div>
+          <div className="mt-3 truncate text-[12px] text-white/70" title={admin.email}>
+            Masuk sebagai {admin.email}
+          </div>
         </div>
         <nav className="flex flex-1 flex-col gap-1 px-3 max-[860px]:flex-row max-[860px]:flex-wrap">
           {MENU.map((m) => (
@@ -41,16 +45,7 @@ export default function AdminLayout() {
           >
             ← Lihat situs
           </Link>
-          <button
-            type="button"
-            onClick={() => {
-              keluarAdmin();
-              navigate("/login");
-            }}
-            className="mt-1 w-full cursor-pointer rounded-md border-0 bg-padi px-3 py-2.5 text-left text-[14px] font-semibold text-sawah hover:bg-padigelap hover:text-white"
-          >
-            Keluar
-          </button>
+          <TombolKeluar />
         </div>
       </aside>
       <main className="flex-1">

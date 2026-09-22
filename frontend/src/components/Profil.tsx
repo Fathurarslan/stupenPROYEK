@@ -1,6 +1,10 @@
-import { PERANGKAT } from "../data/profil";
+import { useStruktur } from "../hooks/useStruktur";
 
 export default function Profil() {
+  // Ikut sumber yang sama dengan halaman struktur, bukan daftar statis,
+  // supaya perubahan dari admin langsung terlihat di sini juga
+  const { perangkat, memuat } = useStruktur();
+
   return (
     <section className="bg-white py-18" id="profil">
       <div className="wrap">
@@ -27,9 +31,9 @@ export default function Profil() {
           <div>
             <h3 className="mb-2.5 text-[22px] text-sawah">Perangkat kelurahan</h3>
             <ul className="m-0 list-none p-0">
-              {PERANGKAT.map((p) => (
+              {perangkat.map((p) => (
                 <li
-                  key={p.jabatan}
+                  key={p.id}
                   className="flex justify-between gap-4 border-b border-garis py-3.5 first:border-t-2 first:border-t-sawah"
                 >
                   <span className="text-[14px] text-abu">{p.jabatan}</span>
@@ -37,6 +41,11 @@ export default function Profil() {
                 </li>
               ))}
             </ul>
+            {perangkat.length === 0 && (
+              <p className="text-[14px] text-abu">
+                {memuat ? "Memuat data perangkat…" : "Data perangkat belum diisi."}
+              </p>
+            )}
           </div>
         </div>
       </div>

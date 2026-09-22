@@ -1,36 +1,43 @@
-import { useCallback } from "react";
-import { PERANGKAT as PERANGKAT_AWAL } from "../data/profil";
-import { buatId } from "../lib/id";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { buatStruktur, hapusStrukturApi, muatStruktur, ubahStruktur } from "../lib/konten";
+import { buatSumberData } from "../lib/store";
 import type { PerangkatItem } from "../types/kelurahan";
-import { useLocalStorageState } from "./useLocalStorageState";
 
-const KUNCI = "admin_struktur";
+// Data struktur jabatan sekarang berasal dari PostgreSQL lewat
+// /api/struktur-jabatan, bukan lagi dari localStorage.
+const sumber = buatSumberData<PerangkatItem[]>([], muatStruktur);
 
 export function useStruktur() {
-  const [perangkat, setPerangkat] = useLocalStorageState<PerangkatItem[]>(KUNCI, PERANGKAT_AWAL);
+  const keadaan = useSyncExternalStore(sumber.langgan, sumber.baca);
 
-  const tambah = useCallback(
-    (item: Omit<PerangkatItem, "id">) => {
-      const baru: PerangkatItem = { ...item, id: buatId("perangkat") };
-      setPerangkat((s) => [...s, baru]);
-      return baru;
-    },
-    [setPerangkat],
-  );
+  useEffect(() => {
+    sumber.pastikanDimuat();
+  }, []);
 
-  const perbarui = useCallback(
-    (id: string, perubahan: Partial<Omit<PerangkatItem, "id">>) => {
-      setPerangkat((s) => s.map((p) => (p.id === id ? { ...p, ...perubahan } : p)));
-    },
-    [setPerangkat],
-  );
+  const tambah = useCallback(async (item: Omit<PerangkatItem, "id">) => {
+    const baru = await buatStruktur(item);
+    await sumber.muatUlang();
+    return baru;
+  }, []);
 
-  const hapus = useCallback(
-    (id: string) => {
-      setPerangkat((s) => s.filter((p) => p.id !== id));
-    },
-    [setPerangkat],
-  );
+  const perbarui = useCallback(async (id: string, item: Omit<PerangkatItem, "id">) => {
+    const hasil = await ubahStruktur(id, item);
+    await sumber.muatUlang();
+    return hasil;
+  }, []);
 
-  return { perangkat, tambah, perbarui, hapus };
+  const hapus = useCallback(async (id: string) => {
+    await hapusStrukturApi(id);
+    await sumber.muatUlang();
+  }, []);
+
+  return {
+    perangkat: keadaan.data,
+    memuat: keadaan.memuat,
+    error: keadaan.error,
+    muatUlang: sumber.muatUlang,
+    tambah,
+    perbarui,
+    hapus,
+  };
 }

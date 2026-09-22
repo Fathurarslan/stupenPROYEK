@@ -2,6 +2,7 @@
 node_modules/
 
 # Environment variables
+# .env.example sengaja TIDAK diabaikan, itu template yang dipakai bersama tim
 .env
 .env.local
 .env.*.local
@@ -9,6 +10,10 @@ node_modules/
 # Build
 dist/
 build/
+
+# Gambar yang diunggah admin, isinya beda-beda tiap lingkungan
+backend/uploads/*
+!backend/uploads/.gitkeep
 
 # Logs
 npm-debug.log*

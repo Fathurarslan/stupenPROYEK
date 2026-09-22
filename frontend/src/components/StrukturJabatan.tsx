@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useStruktur } from "../hooks/useStruktur";
+import { urlPenuh } from "../lib/api";
 import { ambilInisial } from "../lib/text";
 
 // Menampilkan satu kartu pejabat pada satu waktu, berganti otomatis ke
@@ -44,7 +45,7 @@ export default function StrukturJabatan() {
 
         <div className="flex flex-col items-center px-6 py-6">
           {p.foto ? (
-            <img src={p.foto} alt={p.nama} className="aspect-[3/4] w-44 rounded-lg object-cover" />
+            <img src={urlPenuh(p.foto)} alt={p.nama} className="aspect-[3/4] w-44 rounded-lg object-cover" />
           ) : (
             <div className="flex aspect-[3/4] w-44 items-center justify-center rounded-lg bg-kabut text-[40px] font-semibold text-abu">
               {ambilInisial(p.nama)}
