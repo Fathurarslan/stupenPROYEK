@@ -8,6 +8,7 @@ import {
     UKURAN_MAKS_MB,
     unggah,
 } from "../middleware/unggah.js";
+import { berkasSedangDipakai } from "../utils/berkas.js";
 import { KesalahanInput } from "../utils/kesalahan.js";
 
 const router = Router();
@@ -65,11 +66,22 @@ router.post("/banyak", unggah.array("gambar", MAKS_BERKAS_SEKALIGUS), async (req
 });
 
 // DELETE /api/unggah/:namaBerkas
-// Dipakai saat admin mengganti gambar sebelum menyimpan, supaya berkas lama tidak menumpuk.
-// Tidak ada pemeriksaan "sedang dipakai atau tidak", jadi panggil hanya untuk berkas
-// yang memang belum tersimpan di tabel kabar.
+// Dipakai saat admin mengganti gambar sebelum menyimpan, supaya berkas yang
+// batal dipakai tidak menumpuk di disk.
 router.delete("/:namaBerkas", async (req, res) => {
     const nama = pastikanNamaBerkasAman(req.params.namaBerkas);
+
+    // Dulu rute ini menghapus apa saja yang namanya cocok, tanpa peduli berkas
+    // itu sedang terpasang di berita atau foto pejabat yang sudah tayang.
+    // Satu salah pencet cukup untuk mengosongkan gambar di halaman publik,
+    // dan barisnya tetap menunjuk ke berkas yang sudah tidak ada.
+    if (await berkasSedangDipakai(`/upload/${nama}`)) {
+        res.status(409).json({
+            pesan: "Berkas ini sedang dipakai berita atau struktur jabatan. Hapus dulu data yang memakainya.",
+        });
+        return;
+    }
+
     await hapusBerkas(nama);
     res.status(204).send();
 });

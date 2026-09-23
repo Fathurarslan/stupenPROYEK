@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import {
+  hapusPendudukApi,
   muatPenduduk,
   PENDUDUK_KOSONG,
   simpanPenduduk,
@@ -27,11 +28,25 @@ export function usePenduduk() {
     return hasil.stat;
   }, []);
 
+  // Menghapus barisnya di database, bukan sekadar menolkan angkanya. Sesudah
+  // itu data dimuat ulang supaya angka yang dipakai halaman publik ikut
+  // mengikuti isi tabel yang sekarang, lalu stat hasilnya dikembalikan agar
+  // form admin bisa langsung menyesuaikan isi kotaknya.
+  const hapus = useCallback(async () => {
+    const id = sumber.baca().data.id;
+    if (id !== null) await hapusPendudukApi(id);
+    await sumber.muatUlang();
+    return sumber.baca().data.stat;
+  }, []);
+
   return {
     penduduk: keadaan.data.stat,
+    // Tombol hapus tidak ada gunanya selama tabelnya memang masih kosong
+    adaData: keadaan.data.id !== null,
     memuat: keadaan.memuat,
     error: keadaan.error,
     muatUlang: sumber.muatUlang,
     perbarui,
+    hapus,
   };
 }

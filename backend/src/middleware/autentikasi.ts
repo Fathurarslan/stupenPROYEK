@@ -4,6 +4,7 @@ import { KesalahanAuth } from "../utils/kesalahan.js";
 import { bacaToken, type IsiToken } from "../utils/token.js";
 
 interface BarisSesi {
+    admin_id: number;
     dicabut_pada: Date | null;
     kedaluwarsa_pada: Date;
 }
@@ -29,13 +30,20 @@ export async function wajibLogin(req: Request, res: Response, next: NextFunction
         const isi = bacaToken(token);
 
         const hasil = await pool.query<BarisSesi>(
-            "SELECT dicabut_pada, kedaluwarsa_pada FROM sesi_admin WHERE jti = $1",
+            "SELECT admin_id, dicabut_pada, kedaluwarsa_pada FROM sesi_admin WHERE jti = $1",
             [isi.jti]
         );
         const sesi = hasil.rows[0];
 
         if (!sesi) {
             throw new KesalahanAuth("Sesi tidak dikenal, silakan login ulang");
+        }
+        // Pemeriksaan silang: baris sesi harus memang milik admin yang disebut
+        // token. Belum bisa dilanggar hari ini karena jti selalu dibuat
+        // bersamaan dengan tokennya, tapi tanpa ini kecocokan keduanya cuma
+        // diandaikan, tidak pernah dibuktikan.
+        if (sesi.admin_id !== isi.id) {
+            throw new KesalahanAuth("Sesi tidak cocok dengan pemiliknya, silakan login ulang");
         }
         if (sesi.dicabut_pada !== null) {
             throw new KesalahanAuth("Sesi ini sudah dilogout, silakan login ulang");

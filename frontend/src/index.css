@@ -41,4 +41,27 @@
   .wrap {
     @apply mx-auto max-w-[1120px] px-5;
   }
+
+  /* Notifikasi admin: muncul dengan geser turun singkat, lihat
+     components/admin/Notifikasi.tsx */
+  .notif-masuk {
+    animation: notif-masuk 180ms ease-out;
+  }
+}
+
+@keyframes notif-masuk {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notif-masuk {
+    animation: none;
+  }
 }

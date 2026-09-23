@@ -9,17 +9,27 @@ const router = Router();
 // Kolom total tidak pernah dikirim ke database, PostgreSQL menghitungnya sendiri
 // lewat GENERATED ALWAYS AS (laki_laki + perempuan) STORED
 
+// Kolom yang boleh dilihat publik. Ditulis satu per satu, bukan SELECT *,
+// supaya kolom yang ditambahkan nanti tidak otomatis ikut terpublikasi.
+// updated_at tidak dipakai frontend; kalau suatu saat ingin menampilkan
+// "data per tanggal sekian" di beranda, kolom ini tinggal dimasukkan lagi.
+const KOLOM_PUBLIK = "id, laki_laki, perempuan, total";
+
+type PendudukPublik = Omit<Penduduk, "updated_at">;
+
 // GET /api/penduduk
 router.get("/", async (req, res) => {
-    const hasil = await pool.query<Penduduk>("SELECT * FROM penduduk ORDER BY id DESC");
+    const hasil = await pool.query<PendudukPublik>(
+        `SELECT ${KOLOM_PUBLIK} FROM penduduk ORDER BY id DESC`
+    );
     res.json(hasil.rows);
 });
 
 // GET /api/penduduk/terbaru  -> dipakai di beranda
 // Harus didaftarkan sebelum /:id supaya "terbaru" tidak dianggap sebagai id
 router.get("/terbaru", async (req, res) => {
-    const hasil = await pool.query<Penduduk>(
-        "SELECT * FROM penduduk ORDER BY id DESC LIMIT 1"
+    const hasil = await pool.query<PendudukPublik>(
+        `SELECT ${KOLOM_PUBLIK} FROM penduduk ORDER BY id DESC LIMIT 1`
     );
 
     const penduduk = hasil.rows[0];
@@ -33,7 +43,10 @@ router.get("/terbaru", async (req, res) => {
 // GET /api/penduduk/:id
 router.get("/:id", async (req, res) => {
     const id = ambilId(req.params.id);
-    const hasil = await pool.query<Penduduk>("SELECT * FROM penduduk WHERE id = $1", [id]);
+    const hasil = await pool.query<PendudukPublik>(
+        `SELECT ${KOLOM_PUBLIK} FROM penduduk WHERE id = $1`,
+        [id]
+    );
 
     const penduduk = hasil.rows[0];
     if (!penduduk) {

@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAdmin } from "./KonteksAdmin";
+import Notifikasi from "./Notifikasi";
 import TombolKeluar from "./TombolKeluar";
 
 const MENU = [
@@ -7,6 +8,7 @@ const MENU = [
   { label: "Berita & Pengumuman", to: "/admin/kabar", end: false },
   { label: "Struktur Jabatan", to: "/admin/struktur", end: false },
   { label: "Statistik Penduduk", to: "/admin/penduduk", end: false },
+  { label: "Akun Admin", to: "/admin/akun", end: false },
 ];
 
 export default function AdminLayout() {
@@ -14,6 +16,7 @@ export default function AdminLayout() {
 
   return (
     <div className="flex min-h-screen bg-kabut max-[860px]:flex-col">
+      <Notifikasi />
       <aside className="flex w-64 flex-col bg-sawah text-white max-[860px]:w-full">
         <div className="px-5 py-6">
           <div className="font-heading text-[18px]">Admin Kelurahan</div>

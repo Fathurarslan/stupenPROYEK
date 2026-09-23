@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useKabar } from "../../hooks/useKabar";
 import { urlPenuh } from "../../lib/api";
+import { notifGagalDari, notifSukses } from "../../lib/notifikasi";
 import {
   hapusGambarTerunggah,
   namaDariUrl,
@@ -158,9 +159,15 @@ function FormKabar({ id, awal }: { id?: string; awal?: KabarItem }) {
       }
       // Sudah tersimpan di database, berkasnya bukan lagi milik sesi form ini
       diunggahSesiIni.current.clear();
+      // Notifikasi dulu baru pindah halaman: pesannya disimpan di luar React,
+      // jadi tetap terbaca di daftar kabar walau form ini sudah dilepas.
+      notifSukses(
+        modeUbah ? `"${payload.judul}" diperbarui.` : `"${payload.judul}" berhasil ditambahkan.`,
+      );
       navigate("/admin/kabar");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal menyimpan kabar.");
+      notifGagalDari(err, "Gagal menyimpan kabar.");
       setMenyimpan(false);
     }
   };

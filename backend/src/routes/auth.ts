@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { Router } from "express";
 import pool from "../db/pool.js";
 import { adminSaatIni, wajibLogin } from "../middleware/autentikasi.js";
+import { batasLogin, batasSensitif } from "../middleware/batasPermintaan.js";
 import { KesalahanAuth } from "../utils/kesalahan.js";
 import { buatToken } from "../utils/token.js";
 import { ambilBody, ambilEmail, ambilPassword } from "../utils/validasi.js";
@@ -33,7 +34,7 @@ export interface BarisSesiRingkas {
 }
 
 // POST /api/auth/login
-router.post("/login", async (req, res) => {
+router.post("/login", batasLogin, async (req, res) => {
     const body = ambilBody(req.body);
     const email = ambilEmail(body.email);
     // Password saat login tidak divalidasi panjangnya, cukup harus berupa teks
@@ -148,7 +149,9 @@ router.get("/saya", wajibLogin, async (req, res) => {
 });
 
 // PUT /api/auth/password -> ganti password sendiri
-router.put("/password", wajibLogin, async (req, res) => {
+// Pembatas dipasang sebelum wajibLogin supaya permintaan berlebih ditolak
+// tanpa perlu menanyakan sesinya ke database lebih dulu
+router.put("/password", batasSensitif, wajibLogin, async (req, res) => {
     const { id, jti } = adminSaatIni(req);
     const body = ambilBody(req.body);
     const password_lama = typeof body.password_lama === "string" ? body.password_lama : "";
@@ -199,7 +202,7 @@ router.put("/password", wajibLogin, async (req, res) => {
 });
 
 // PUT /api/auth/email -> ganti email login, wajib konfirmasi password
-router.put("/email", wajibLogin, async (req, res) => {
+router.put("/email", batasSensitif, wajibLogin, async (req, res) => {
     const { id } = adminSaatIni(req);
     const body = ambilBody(req.body);
     const email_baru = ambilEmail(body.email_baru);

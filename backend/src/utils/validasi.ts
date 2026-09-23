@@ -1,11 +1,32 @@
-import { JENIS_KABAR, type JenisKabar } from "../types.js";
+import { JENIS_KABAR, TINGKAT_JABATAN, type JenisKabar, type TingkatJabatan } from "../types.js";
 import { KesalahanInput } from "./kesalahan.js";
+
+// Batas kolom INTEGER (int4) PostgreSQL. Angka di atas ini dicegat di sini,
+// sebab kalau sampai ke database jadinya error 22003 yang muncul ke client
+// sebagai "kesalahan server", padahal yang salah justru kiriman client.
+export const MAKS_INT4 = 2147483647;
+
+// Number() terlalu longgar untuk dipakai menyaring: " 12 ", "0x10", "1e3",
+// [], [5], dan true semuanya berubah jadi angka yang kelihatan sah. Di sini
+// bentuk nilainya yang diperiksa lebih dulu, bukan hasil konversinya.
+// null berarti "bukan bilangan bulat tak negatif", bukan "nol".
+function keBulatTakNegatif(nilai: unknown): number | null {
+    if (typeof nilai === "number") {
+        return Number.isInteger(nilai) && nilai >= 0 ? nilai : null;
+    }
+    if (typeof nilai === "string" && /^\d+$/.test(nilai)) {
+        const angka = Number(nilai);
+        // Di atas 2^53 bilangan bulat tidak lagi tepat, jadi ditolak sekalian
+        return Number.isSafeInteger(angka) ? angka : null;
+    }
+    return null;
+}
 
 // Ambil :id dari URL atau body, pastikan angka bulat positif
 export function ambilId(nilai: unknown, nama = "id"): number {
-    const angka = Number(nilai);
-    if (!Number.isInteger(angka) || angka < 1) {
-        throw new KesalahanInput(`Kolom ${nama} harus berupa angka bulat positif`);
+    const angka = keBulatTakNegatif(nilai);
+    if (angka === null || angka < 1 || angka > MAKS_INT4) {
+        throw new KesalahanInput(`Kolom ${nama} harus berupa angka bulat 1 sampai ${MAKS_INT4}`);
     }
     return angka;
 }
@@ -29,10 +50,11 @@ export function teksOpsional(nilai: unknown, nama: string, maksimal?: number): s
     return teksWajib(nilai, nama, maksimal);
 }
 
-export function bulatTakNegatif(nilai: unknown, nama: string): number {
-    const angka = Number(nilai);
-    if (nilai === null || nilai === undefined || nilai === "" || !Number.isInteger(angka) || angka < 0) {
-        throw new KesalahanInput(`Kolom ${nama} harus berupa angka bulat 0 atau lebih`);
+// maksimal bisa diperketat per pemakaian, contohnya untuk ?limit pada paginasi
+export function bulatTakNegatif(nilai: unknown, nama: string, maksimal = MAKS_INT4): number {
+    const angka = keBulatTakNegatif(nilai);
+    if (angka === null || angka > maksimal) {
+        throw new KesalahanInput(`Kolom ${nama} harus berupa angka bulat 0 sampai ${maksimal}`);
     }
     return angka;
 }
@@ -42,6 +64,15 @@ export function ambilJenisKabar(nilai: unknown): JenisKabar {
         return nilai as JenisKabar;
     }
     throw new KesalahanInput("Kolom jenis harus 'berita' atau 'pengumuman'");
+}
+
+// Tingkat pada struktur jabatan: 1, 2, atau 3
+export function ambilTingkatJabatan(nilai: unknown): TingkatJabatan {
+    const angka = Number(nilai);
+    if ((TINGKAT_JABATAN as readonly number[]).includes(angka)) {
+        return angka as TingkatJabatan;
+    }
+    throw new KesalahanInput("Kolom tingkat harus bernilai 1, 2, atau 3");
 }
 
 // Kolom tanggal yang boleh tidak dikirim. null berarti "biarkan apa adanya"
@@ -69,17 +100,30 @@ export function ambilEmail(nilai: unknown): string {
     return email;
 }
 
+// bcrypt hanya membaca 72 BYTE pertama dan membuang sisanya tanpa peringatan.
+// Panjang string di JavaScript dihitung dalam satuan UTF-16, bukan byte, jadi
+// .length tidak bisa dipakai untuk batas ini: password 36 emoji terbaca 72
+// tapi sebenarnya 144 byte, lolos pemeriksaan lalu dipotong separuh diam-diam.
+// Akibat anehnya, dua password yang hanya berbeda di ekornya sama-sama diterima.
+const MAKS_BYTE_BCRYPT = 72;
+
 // Password tidak di-trim karena spasi boleh jadi bagian dari password
 export function ambilPassword(nilai: unknown, nama = "password"): string {
     if (typeof nilai !== "string" || nilai === "") {
         throw new KesalahanInput(`Kolom ${nama} wajib diisi`);
     }
+    // Minimum tetap dihitung per karakter: itu satuan yang dimengerti orang,
+    // dan aturannya datang dari kita sendiri, bukan dari bcrypt
     if (nilai.length < 8) {
         throw new KesalahanInput(`Kolom ${nama} minimal 8 karakter`);
     }
-    if (nilai.length > 72) {
-        // bcrypt hanya membaca 72 byte pertama, sisanya diabaikan tanpa peringatan
-        throw new KesalahanInput(`Kolom ${nama} maksimal 72 karakter`);
+
+    const byte = Buffer.byteLength(nilai, "utf8");
+    if (byte > MAKS_BYTE_BCRYPT) {
+        throw new KesalahanInput(
+            `Kolom ${nama} terlalu panjang: maksimal ${MAKS_BYTE_BCRYPT} byte, yang dikirim ${byte} byte. ` +
+                `Huruf dan angka biasa dihitung 1 byte, huruf beraksen 2 byte, emoji 4 byte.`
+        );
     }
     return nilai;
 }

@@ -7,7 +7,11 @@ import { formatTanggal } from "../lib/tanggal";
 const WARNA_SLIDE = ["bg-tambak", "bg-sawah", "bg-daun", "bg-padigelap"];
 
 export default function KabarCarousel() {
-  const { kabar } = useKabar();
+  const { kabar: semuaKabar } = useKabar();
+  // Slide dibatasi 5 sama seperti daftar di Kabar.tsx. Carousel berganti tiap
+  // 4 detik dan menggambar satu titik penanda per slide, jadi tanpa batas ini
+  // sekali putaran bisa memakan menit dan deretan titiknya melimpah di HP.
+  const kabar = semuaKabar.slice(0, 5);
   const [slide, setSlide] = useState(0);
   const [hover, setHover] = useState(false);
   const total = kabar.length;

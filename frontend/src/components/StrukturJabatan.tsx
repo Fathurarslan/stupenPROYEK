@@ -44,13 +44,17 @@ export default function StrukturJabatan() {
         </div>
 
         <div className="flex flex-col items-center px-6 py-6">
-          {p.foto ? (
-            <img src={urlPenuh(p.foto)} alt={p.nama} className="aspect-[3/4] w-44 rounded-lg object-cover" />
-          ) : (
-            <div className="flex aspect-[3/4] w-44 items-center justify-center rounded-lg bg-kabut text-[40px] font-semibold text-abu">
-              {ambilInisial(p.nama)}
-            </div>
-          )}
+          {/* Kotak foto diukur di sini, bukan di <img>/<div> inisialnya, supaya
+              kartu punya tinggi yang sama persis baik fotonya ada maupun tidak. */}
+          <div className="aspect-[3/4] w-44 max-w-full shrink-0 overflow-hidden rounded-lg bg-kabut">
+            {p.foto ? (
+              <img src={urlPenuh(p.foto)} alt={p.nama} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-[40px] font-semibold text-abu">
+                {ambilInisial(p.nama)}
+              </div>
+            )}
+          </div>
           <b className="mt-4 text-center text-[16px] leading-[1.3] font-bold text-tinta uppercase">{p.nama}</b>
           <span className="mt-1 text-center text-[14px] text-abu">{p.jabatan}</span>
           {p.nip && <span className="mt-1 text-center text-[13px] text-abu">NIP. : {p.nip}</span>}

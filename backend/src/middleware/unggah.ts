@@ -101,3 +101,15 @@ export function pastikanNamaBerkasAman(nama: unknown): string {
     }
     return nama;
 }
+
+// Ambil nama berkas dari URL yang tersimpan di database (/upload/xxx.jpg).
+// Mengembalikan null kalau URL-nya bukan milik kita, misalnya tautan ke situs
+// lain atau data lama berbentuk lain. Dengan begitu tidak pernah ada percobaan
+// menghapus berkas yang bukan urusan aplikasi ini.
+export function namaBerkasDariUrl(url: string | null | undefined): string | null {
+    if (typeof url !== "string" || !url.startsWith("/upload/")) {
+        return null;
+    }
+    const nama = url.slice("/upload/".length);
+    return POLA_NAMA.test(nama) ? nama : null;
+}
