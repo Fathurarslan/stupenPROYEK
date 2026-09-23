@@ -29,12 +29,18 @@ export interface KabarLengkap extends Kabar {
     gambar_lain: Pick<KabarGambar, "id" | "gambar_url" | "urutan">[];
 }
 
+// Tingkat 1 hanya boleh diisi satu orang (Kepala Kelurahan), tingkat 2 dan 3
+// boleh lebih dari satu. Lihat migrations/002_tingkat_struktur.sql.
+export const TINGKAT_JABATAN = [1, 2, 3] as const;
+export type TingkatJabatan = (typeof TINGKAT_JABATAN)[number];
+
 export interface StrukturJabatan {
     id: number;
     foto: string | null;
     nama_jabatan: string;
     nama_pejabat: string;
     nip: string | null;
+    tingkat: TingkatJabatan;
     created_at: Date;
     updated_at: Date;
 }

@@ -2,21 +2,21 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useKabar } from "../../hooks/useKabar";
 import { urlPenuh } from "../../lib/api";
+import { notifGagalDari, notifSukses } from "../../lib/notifikasi";
 import { formatTanggal } from "../../lib/tanggal";
 
 export default function AdminBerita() {
   const { kabar, memuat, error, hapus } = useKabar();
   const [filter, setFilter] = useState("Semua");
-  const [errorHapus, setErrorHapus] = useState("");
   const data = kabar.filter((k) => filter === "Semua" || k.jenis === filter);
 
   const hapusItem = async (id: string, judul: string) => {
     if (!window.confirm(`Hapus "${judul}"? Tindakan ini tidak bisa dibatalkan.`)) return;
-    setErrorHapus("");
     try {
       await hapus(id);
+      notifSukses(`"${judul}" dihapus.`);
     } catch (err) {
-      setErrorHapus(err instanceof Error ? err.message : "Gagal menghapus kabar.");
+      notifGagalDari(err, "Gagal menghapus kabar.");
     }
   };
 
@@ -37,9 +37,11 @@ export default function AdminBerita() {
         </Link>
       </div>
 
-      {(error || errorHapus) && (
+      {/* Hanya kegagalan memuat yang ditulis di sini; hasil hapus muncul
+          sebagai notifikasi di pojok kanan atas. */}
+      {error && (
         <p className="mb-4 rounded-md border border-[#b3261e]/30 bg-[#b3261e]/5 p-3 text-[14px] text-[#b3261e]">
-          {error || errorHapus}
+          {error}
         </p>
       )}
 

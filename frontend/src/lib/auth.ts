@@ -110,3 +110,28 @@ export async function logoutSemua(): Promise<number> {
 export async function daftarSesi(): Promise<Sesi[]> {
   return apiFetch<Sesi[]>("/api/auth/sesi", { token: ambilToken() });
 }
+
+// Ganti password sendiri. Server mempertahankan sesi yang sedang dipakai dan
+// hanya mencabut perangkat lain, jadi admin tidak terlempar ke halaman login
+// setelah mengganti passwordnya sendiri. Angka yang dikembalikan adalah jumlah
+// perangkat lain yang ikut dikeluarkan.
+export async function gantiPassword(lama: string, baru: string): Promise<number> {
+  const hasil = await apiFetch<{ jumlah_sesi_lain_dicabut: number }>("/api/auth/password", {
+    metode: "PUT",
+    body: { password_lama: lama, password_baru: baru },
+    token: ambilToken(),
+  });
+  return hasil.jumlah_sesi_lain_dicabut;
+}
+
+// Ganti email login. Wajib konfirmasi password supaya orang yang menemukan
+// perangkat dalam keadaan terbuka tidak bisa mengambil alih akun hanya dengan
+// menukar emailnya.
+export async function gantiEmail(emailBaru: string, password: string): Promise<Admin> {
+  const hasil = await apiFetch<{ admin: Admin }>("/api/auth/email", {
+    metode: "PUT",
+    body: { email_baru: emailBaru.trim(), password },
+    token: ambilToken(),
+  });
+  return hasil.admin;
+}

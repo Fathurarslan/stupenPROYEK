@@ -2,6 +2,7 @@ import { Router } from "express";
 import pool from "../db/pool.js";
 import { adminSaatIni, wajibLogin } from "../middleware/autentikasi.js";
 import type { Kabar, KabarGambar, KabarLengkap } from "../types.js";
+import { hapusBerkasTakTerpakai } from "../utils/berkas.js";
 import { KesalahanInput } from "../utils/kesalahan.js";
 import {
     ambilBody,
@@ -15,9 +16,31 @@ import {
 
 const router = Router();
 
-// Dipakai bersama oleh rute daftar dan rute detail
+// Batas tertinggi yang boleh diminta lewat ?limit, bukan ukuran halaman.
+// Angkanya 100 karena itu yang diminta frontend di lib/konten.ts; kalau di
+// sana dinaikkan, angka ini harus ikut naik. Tanpa batas, siapa pun bisa
+// memanggil /api/kabar?limit=999999999 dan memaksa seluruh isi tabel
+// dirangkai jadi satu JSON, padahal rute ini publik tanpa login.
+const MAKS_LIMIT = 100;
+
+// Harus sama dengan trigger cek_maksimal_gambar di db/SCHEMA.sql dan
+// MAKS_GAMBAR_LAIN di frontend/src/pages/admin/TambahBerita.tsx
+const MAKS_GAMBAR_LAIN = 5;
+
+// Sekitar 7 halaman A4, jauh di atas kebutuhan artikel kelurahan. Kolomnya
+// TEXT di database, jadi tanpa batas ini satu-satunya rem adalah ukuran body
+// JSON, padahal teks ini ikut terkirim di daftar kabar yang bersifat publik.
+const MAKS_DESKRIPSI = 20000;
+
+// Dipakai bersama oleh rute daftar dan rute detail.
+//
+// Kolomnya ditulis satu per satu, bukan k.*, supaya kolom yang ditambahkan
+// nanti tidak otomatis ikut terkirim ke halaman publik. Yang sengaja tidak
+// ikut: admin_id (pipa internal, tidak ada urusannya dengan pengunjung),
+// created_at, dan updated_at (membocorkan kapan sebuah kabar diam-diam diubah).
 const PILIH_KABAR_LENGKAP = `
-    SELECT k.*,
+    SELECT k.id, k.jenis, k.judul, k.tanggal_upload, k.gambar_utama,
+           k.ringkasan, k.deskripsi_lengkap,
       COALESCE(
         json_agg(
           json_build_object('id', kg.id, 'gambar_url', kg.gambar_url, 'urutan', kg.urutan)
@@ -36,6 +59,12 @@ function daftarGambar(nilai: unknown): string[] {
     if (!Array.isArray(nilai)) {
         throw new KesalahanInput("Kolom gambar_lain harus berupa array berisi URL gambar");
     }
+    // Dicegat di sini, bukan dibiarkan sampai ke trigger database, supaya
+    // tidak ada transaksi yang sudah terbuka dan menyisipkan beberapa baris
+    // lalu dibatalkan di tengah jalan
+    if (nilai.length > MAKS_GAMBAR_LAIN) {
+        throw new KesalahanInput(`Kolom gambar_lain maksimal ${MAKS_GAMBAR_LAIN} gambar`);
+    }
     return nilai.map((url, i) => teksWajib(url, `gambar_lain[${i}]`, 255));
 }
 
@@ -49,7 +78,7 @@ router.get("/", async (req, res) => {
         filter = `WHERE k.jenis = $${nilaiParam.length}`;
     }
 
-    const limit = req.query.limit === undefined ? 50 : bulatTakNegatif(req.query.limit, "limit");
+    const limit = req.query.limit === undefined ? 50 : bulatTakNegatif(req.query.limit, "limit", MAKS_LIMIT);
     const offset = req.query.offset === undefined ? 0 : bulatTakNegatif(req.query.offset, "offset");
     nilaiParam.push(limit, offset);
 
@@ -101,7 +130,7 @@ router.post("/", wajibLogin, async (req, res) => {
     const judul = teksWajib(body.judul, "judul", 200);
     const gambar_utama = teksWajib(body.gambar_utama, "gambar_utama", 255);
     const ringkasan = teksOpsional(body.ringkasan, "ringkasan", 500);
-    const deskripsi_lengkap = teksWajib(body.deskripsi_lengkap, "deskripsi_lengkap");
+    const deskripsi_lengkap = teksWajib(body.deskripsi_lengkap, "deskripsi_lengkap", MAKS_DESKRIPSI);
     const gambar_lain = daftarGambar(body.gambar_lain);
     const tanggal_upload = tanggalOpsional(body.tanggal_upload, "tanggal_upload");
 
@@ -158,14 +187,25 @@ router.put("/:id", wajibLogin, async (req, res) => {
     const judul = teksWajib(body.judul, "judul", 200);
     const gambar_utama = teksWajib(body.gambar_utama, "gambar_utama", 255);
     const ringkasan = teksOpsional(body.ringkasan, "ringkasan", 500);
-    const deskripsi_lengkap = teksWajib(body.deskripsi_lengkap, "deskripsi_lengkap");
+    const deskripsi_lengkap = teksWajib(body.deskripsi_lengkap, "deskripsi_lengkap", MAKS_DESKRIPSI);
     const tanggal_upload = tanggalOpsional(body.tanggal_upload, "tanggal_upload");
     const gantiGaleri = body.gambar_lain !== undefined;
     const gambar_lain = gantiGaleri ? daftarGambar(body.gambar_lain) : [];
 
     const client = await pool.connect();
+    // Dicatat sebelum diubah, dibandingkan sesudahnya: gambar yang tidak lagi
+    // dirujuk berarti sudah tidak terpakai dan berkasnya ikut dibuang.
+    let gambarLama: string[] = [];
+    let gambarSesudah: string[] = [];
     try {
         await client.query("BEGIN");
+
+        const sebelum = await client.query<{ url: string }>(
+            `SELECT gambar_utama AS url FROM kabar WHERE id = $1
+             UNION SELECT gambar_url FROM kabar_gambar WHERE kabar_id = $1`,
+            [id]
+        );
+        gambarLama = sebelum.rows.map((r) => r.url);
 
         const hasil = await client.query<Kabar>(
             `UPDATE kabar
@@ -202,6 +242,13 @@ router.put("/:id", wajibLogin, async (req, res) => {
             }
         }
 
+        const sesudah = await client.query<{ url: string }>(
+            `SELECT gambar_utama AS url FROM kabar WHERE id = $1
+             UNION SELECT gambar_url FROM kabar_gambar WHERE kabar_id = $1`,
+            [id]
+        );
+        gambarSesudah = sesudah.rows.map((r) => r.url);
+
         await client.query("COMMIT");
         res.json(gantiGaleri ? { ...kabar, gambar_lain: gambarTersimpan } : kabar);
     } catch (err) {
@@ -210,31 +257,84 @@ router.put("/:id", wajibLogin, async (req, res) => {
     } finally {
         client.release();
     }
+
+    // Sesudah COMMIT, bukan di dalam transaksi: kalau transaksinya batal,
+    // berkasnya harus tetap ada karena barisnya juga masih ada.
+    const masihDipakai = new Set(gambarSesudah);
+    await hapusBerkasTakTerpakai(gambarLama.filter((u) => !masihDipakai.has(u)));
 });
 
 // DELETE /api/kabar/:id  (gambar tambahan ikut terhapus lewat ON DELETE CASCADE)
 router.delete("/:id", wajibLogin, async (req, res) => {
     const id = ambilId(req.params.id);
-    const hasil = await pool.query("DELETE FROM kabar WHERE id = $1", [id]);
 
-    if (hasil.rowCount === 0) {
-        res.status(404).json({ pesan: `Kabar dengan id ${id} tidak ditemukan` });
-        return;
+    const client = await pool.connect();
+    let gambar: string[] = [];
+    try {
+        await client.query("BEGIN");
+
+        // Dikumpulkan sebelum barisnya hilang: kabar_gambar ikut terhapus
+        // lewat ON DELETE CASCADE, jadi sesudah ini URL-nya tidak bisa
+        // ditelusuri lagi dan berkasnya akan menganggur di disk selamanya.
+        const daftar = await client.query<{ url: string }>(
+            `SELECT gambar_utama AS url FROM kabar WHERE id = $1
+             UNION SELECT gambar_url FROM kabar_gambar WHERE kabar_id = $1`,
+            [id]
+        );
+
+        const hasil = await client.query("DELETE FROM kabar WHERE id = $1", [id]);
+        if (hasil.rowCount === 0) {
+            await client.query("ROLLBACK");
+            res.status(404).json({ pesan: `Kabar dengan id ${id} tidak ditemukan` });
+            return;
+        }
+
+        gambar = daftar.rows.map((r) => r.url);
+        await client.query("COMMIT");
+        res.status(204).send();
+    } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+    } finally {
+        client.release();
     }
-    res.status(204).send();
+
+    await hapusBerkasTakTerpakai(gambar);
 });
 
 // POST /api/kabar/:id/gambar  -> tambah satu gambar tambahan
-// Trigger trg_maksimal_gambar akan menolak kalau sudah ada 5 gambar
+//
+// Sejak migrasi 003, batas 5 gambar dijaga constraint (urutan 0..4 dan unik
+// per kabar), bukan trigger penghitung yang bisa disalip transaksi lain.
+// Karena itu urutan tidak bisa lagi selalu 0: kalau tidak disebut, diambilkan
+// nomor kosong berikutnya. Kalau bentrok karena dua permintaan bersamaan,
+// constraint uniknya yang menolak, dan itu memang yang diinginkan.
 router.post("/:id/gambar", wajibLogin, async (req, res) => {
     const kabar_id = ambilId(req.params.id);
     const body = ambilBody(req.body);
     const gambar_url = teksWajib(body.gambar_url, "gambar_url", 255);
-    const urutan = body.urutan === undefined ? 0 : bulatTakNegatif(body.urutan, "urutan");
+    const urutan =
+        body.urutan === undefined
+            ? null
+            : bulatTakNegatif(body.urutan, "urutan", MAKS_GAMBAR_LAIN - 1);
+
+    // Diperiksa lebih dulu supaya pesan penuhnya jelas, bukan berupa
+    // pelanggaran CHECK yang berbunyi "tidak sesuai aturan database"
+    const jumlah = await pool.query<{ n: string }>(
+        "SELECT count(*)::text AS n FROM kabar_gambar WHERE kabar_id = $1",
+        [kabar_id]
+    );
+    if (Number(jumlah.rows[0]?.n ?? 0) >= MAKS_GAMBAR_LAIN) {
+        throw new KesalahanInput(
+            `Kabar ini sudah punya ${MAKS_GAMBAR_LAIN} gambar tambahan, hapus salah satu dulu`
+        );
+    }
 
     const hasil = await pool.query<KabarGambar>(
         `INSERT INTO kabar_gambar (kabar_id, gambar_url, urutan)
-         VALUES ($1, $2, $3)
+         VALUES ($1, $2, COALESCE($3::int, (
+             SELECT COALESCE(max(urutan) + 1, 0) FROM kabar_gambar WHERE kabar_id = $1
+         )))
          RETURNING *`,
         [kabar_id, gambar_url, urutan]
     );

@@ -1,13 +1,26 @@
 import bcrypt from "bcrypt";
+import { KesalahanInput } from "../utils/kesalahan.js";
+import { ambilEmail, ambilPassword } from "../utils/validasi.js";
 import pool from "./pool.js";
 
 // .env sudah dimuat oleh pool.ts saat modulnya diimpor di atas
 
-const email = process.env.ADMIN_EMAIL;
-const password = process.env.ADMIN_PASSWORD;
-
-if (!email || !password) {
+if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {
     console.error("Isi dulu ADMIN_EMAIL dan ADMIN_PASSWORD di backend/.env");
+    process.exit(1);
+}
+
+// Password admin yang pertama justru yang paling penting, jadi diperiksa
+// dengan aturan yang sama seperti saat admin mengganti passwordnya sendiri.
+// Sebelumnya berkas ini melewati semua pemeriksaan: password empat huruf pun
+// diterima tanpa sepatah kata.
+let email: string;
+let password: string;
+try {
+    email = ambilEmail(process.env.ADMIN_EMAIL);
+    password = ambilPassword(process.env.ADMIN_PASSWORD, "ADMIN_PASSWORD");
+} catch (err) {
+    console.error(err instanceof KesalahanInput ? err.message : err);
     process.exit(1);
 }
 

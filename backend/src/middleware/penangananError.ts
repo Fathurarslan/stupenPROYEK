@@ -17,6 +17,18 @@ function pesanMulter(err: MulterError): string {
     }
 }
 
+// body-parser (di balik express.json) menandai kesalahannya lewat properti
+// "type", bukan "code". Tanpa dikenali, body yang melebihi batas dan JSON
+// yang rusak sama-sama jatuh ke penanganan terakhir dan dibalas 500, padahal
+// yang keliru justru kiriman client.
+function tipeBodyParser(err: unknown): string | undefined {
+    if (typeof err === "object" && err !== null && "type" in err) {
+        const tipe = (err as { type?: unknown }).type;
+        return typeof tipe === "string" ? tipe : undefined;
+    }
+    return undefined;
+}
+
 // Baca kolom "code" milik error dari driver pg tanpa memakai any
 function kodePostgres(err: unknown): string | undefined {
     if (typeof err === "object" && err !== null && "code" in err) {
@@ -24,13 +36,6 @@ function kodePostgres(err: unknown): string | undefined {
         return typeof kode === "string" ? kode : undefined;
     }
     return undefined;
-}
-
-function pesanPostgres(err: unknown): string {
-    if (err instanceof Error && err.message) {
-        return err.message;
-    }
-    return "Data ditolak oleh database";
 }
 
 export function rute404(req: Request, res: Response) {
@@ -61,10 +66,33 @@ export function penangananError(err: unknown, req: Request, res: Response, next:
         return;
     }
 
+    switch (tipeBodyParser(err)) {
+        case "entity.too.large":
+            res.status(413).json({ pesan: "Data yang dikirim terlalu besar" });
+            return;
+        case "entity.parse.failed":
+            res.status(400).json({ pesan: "Body bukan JSON yang sah" });
+            return;
+        case "encoding.unsupported":
+            res.status(415).json({ pesan: "Encoding body tidak didukung" });
+            return;
+        default:
+            break;
+    }
+
     switch (kodePostgres(err)) {
-        // RAISE EXCEPTION dari trigger, contohnya batas 5 gambar per kabar
+        // RAISE EXCEPTION dari trigger. Sejak migrasi 003 tidak ada trigger
+        // yang memakainya lagi (batas 5 gambar kini dijaga constraint), jadi
+        // cabang ini praktis tak tersentuh -- dibiarkan sebagai penjaga untuk
+        // trigger yang mungkin ditambahkan nanti.
+        //
+        // Pesannya sengaja TIDAK diteruskan ke client. Teks yang ditulis di
+        // dalam database tidak dirancang untuk dibaca pengunjung, dan sekali
+        // jalurnya terbuka ia ikut terbit tanpa ada yang meninjau. Aslinya
+        // dicatat di log supaya tetap bisa dilacak.
         case "P0001":
-            res.status(400).json({ pesan: pesanPostgres(err) });
+            console.error("Trigger database menolak data:", err);
+            res.status(400).json({ pesan: "Data ditolak oleh aturan database" });
             return;
         // email admin sudah dipakai
         case "23505":
@@ -81,6 +109,16 @@ export function penangananError(err: unknown, req: Request, res: Response, next:
         // kolom NOT NULL dikirim kosong
         case "23502":
             res.status(400).json({ pesan: "Ada kolom wajib yang belum diisi" });
+            return;
+        // angka di luar jangkauan kolomnya, contohnya INTEGER di atas 2.147.483.647.
+        // Validasi di utils/validasi.ts sudah mencegatnya lebih dulu; ini jaring
+        // pengaman supaya salah kirim tetap dibalas 400, bukan 500.
+        case "22003":
+            res.status(400).json({ pesan: "Angka yang dikirim di luar jangkauan yang diizinkan" });
+            return;
+        // teks yang tidak bisa dibaca sebagai tipe kolomnya, contohnya UUID salah bentuk
+        case "22P02":
+            res.status(400).json({ pesan: "Format nilai yang dikirim tidak sesuai" });
             return;
         default:
             break;

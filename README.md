@@ -91,7 +91,7 @@ Backend akan berjalan di:
 http://localhost:5000
 ```
 
-> Jika ingin menjalankan versi production, gunakan `npm run build` pada masing-masing project sesuai kebutuhan, lalu `npm run start` untuk backend dan preview atau build untuk frontend.
+> Langkah di atas untuk menjalankan di komputer sendiri. Untuk memasang ke server yang bisa diakses publik, ikuti [DEPLOY.md](DEPLOY.md) — ada beberapa setelan yang kalau terlewat membuat situs tidak berfungsi atau terbuka celah keamanan.
 
 ## Cara Kontribusi
 

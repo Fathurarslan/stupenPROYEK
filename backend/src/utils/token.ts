@@ -8,6 +8,15 @@ export interface IsiToken {
     jti: string; // id sesi, dipakai untuk mencabut token saat logout
 }
 
+// Ketiganya ditulis sebagai konstanta di berkas ini, bukan diambil dari .env,
+// dan dipakai bersama oleh buatToken dan bacaToken. Kalau nilainya sampai
+// berbeda antara penandatanganan dan verifikasi, gejalanya membingungkan:
+// login berhasil dan token terbit, tapi setiap permintaan berikutnya dibalas
+// 401 seakan-akan loginnya tidak nyantol. Dengan satu sumber, itu mustahil.
+const ALGORITMA = "HS256" as const;
+const PENERBIT = "kelurahan-sidoharjo";
+const AUDIENS = "admin-kelurahan";
+
 // Dibaca saat dipakai, bukan saat modul diimpor, supaya pesan error jelas
 function rahasia(): string {
     const nilai = process.env.JWT_SECRET;
@@ -33,6 +42,9 @@ export function buatToken(admin: { id: number; email: string }): TokenBaru {
     const kedaluwarsa_detik = masaBerlaku();
     const jti = randomUUID();
     const token = jwt.sign({ email: admin.email }, rahasia(), {
+        algorithm: ALGORITMA,
+        issuer: PENERBIT,
+        audience: AUDIENS,
         subject: String(admin.id),
         jwtid: jti,
         expiresIn: kedaluwarsa_detik,
@@ -48,7 +60,15 @@ export function buatToken(admin: { id: number; email: string }): TokenBaru {
 export function bacaToken(token: string): IsiToken {
     let isi: string | jwt.JwtPayload;
     try {
-        isi = jwt.verify(token, rahasia());
+        // Algoritma dipatok, tidak dibiarkan memakai bawaan pustaka. Hari ini
+        // jsonwebtoken sudah membatasi ke HS* karena rahasianya berupa teks,
+        // tapi patokan ini menjaga niat aslinya tetap utuh kalau suatu saat
+        // rahasianya diganti bentuk.
+        isi = jwt.verify(token, rahasia(), {
+            algorithms: [ALGORITMA],
+            issuer: PENERBIT,
+            audience: AUDIENS,
+        });
     } catch (err) {
         if (err instanceof jwt.TokenExpiredError) {
             throw new KesalahanAuth("Token sudah kedaluwarsa, silakan login ulang");

@@ -1,5 +1,5 @@
 import PetakSawah from "../components/PetakSawah";
-import { BATAS_WILAYAH, FAKTA_GEOGRAFIS, PENGGUNAAN_LAHAN } from "../data/geografis";
+import { BATAS_WILAYAH, FAKTA_GEOGRAFIS } from "../data/geografis";
 
 export default function Geografis() {
   return (
@@ -42,29 +42,6 @@ export default function Geografis() {
             </div>
           ))}
         </div>
-      </section>
-
-      <section aria-label="Penggunaan lahan">
-        <h2 className="font-heading mb-2.5 text-[22px] text-sawah">Penggunaan Lahan</h2>
-        <p className="mb-5 max-w-[65ch] text-abu">
-          Perkiraan proporsi penggunaan lahan di wilayah kelurahan.
-        </p>
-        <div className="max-w-130">
-          {PENGGUNAAN_LAHAN.map((p) => (
-            <div className="mb-3.5" key={p.label}>
-              <div className="mb-1.5 flex justify-between text-[14px]">
-                <span>{p.label}</span>
-                <b>{p.nilai}%</b>
-              </div>
-              <div className="h-3 overflow-hidden rounded-md bg-garis">
-                <i className="block h-full rounded-md bg-daun" style={{ width: `${p.nilai}%` }} />
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="mt-4 text-[13px] text-abu">
-          Angka di atas adalah contoh. Ganti dengan data resmi dari kelurahan.
-        </p>
       </section>
     </main>
   );

@@ -1,3 +1,4 @@
+import { TINGKAT_JABATAN, type TingkatJabatan } from "../types/kelurahan";
 import type { KabarItem, PendudukStat, PerangkatItem } from "../types/kelurahan";
 import { apiFetch } from "./api";
 import { ambilToken } from "./auth";
@@ -80,6 +81,7 @@ interface StrukturApi {
   nama_jabatan: string;
   nama_pejabat: string;
   nip: string | null;
+  tingkat: number;
 }
 
 function kePerangkatItem(api: StrukturApi): PerangkatItem {
@@ -87,9 +89,17 @@ function kePerangkatItem(api: StrukturApi): PerangkatItem {
     id: String(api.id),
     jabatan: api.nama_jabatan,
     nama: api.nama_pejabat,
+    // Data lama sebelum kolom tingkat ada dianggap tingkat 2
+    tingkat: keTingkat(api.tingkat),
     foto: api.foto ?? undefined,
     nip: api.nip ?? undefined,
   };
+}
+
+function keTingkat(nilai: number): TingkatJabatan {
+  return (TINGKAT_JABATAN as readonly number[]).includes(nilai)
+    ? (nilai as TingkatJabatan)
+    : 2;
 }
 
 function keBodyStruktur(item: Omit<PerangkatItem, "id">) {
@@ -98,6 +108,7 @@ function keBodyStruktur(item: Omit<PerangkatItem, "id">) {
     nama_jabatan: item.jabatan,
     nama_pejabat: item.nama,
     nip: item.nip ?? null,
+    tingkat: item.tingkat,
   };
 }
 
@@ -162,6 +173,10 @@ export async function muatPenduduk(): Promise<DataPenduduk> {
     id: terbaru.id,
     stat: { lakiLaki: terbaru.laki_laki, perempuan: terbaru.perempuan },
   };
+}
+
+export async function hapusPendudukApi(id: number): Promise<void> {
+  await apiFetch(`/api/penduduk/${id}`, { metode: "DELETE", token: ambilToken() });
 }
 
 export async function simpanPenduduk(
