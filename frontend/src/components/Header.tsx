@@ -104,7 +104,7 @@ export default function Header() {
         <Link to="/login">
         <button
           type="button"
-          className="flex flex-row px-5 gap-3 cursor-pointer rounded-md bg-padi px-3 py-1.5 text-[16px] font-semibold text-sawah hover:bg-padigelap hover:text-white max-[860px]:hidden"
+          className="flex flex-row px-5 gap-3 cursor-pointer rounded-md bg-padi py-1.5 text-[16px] font-semibold text-sawah hover:bg-padigelap hover:text-white max-[860px]:text-sm"
           >
           <p>Login Admin</p>
           <p>→</p>
