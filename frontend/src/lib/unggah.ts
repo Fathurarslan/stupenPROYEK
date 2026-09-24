@@ -1,4 +1,4 @@
-import { DASAR_API, KesalahanApi } from "./api";
+import { BATAS_WAKTU_MS, DASAR_API, KesalahanApi, kesalahanJaringan } from "./api";
 import { ambilToken } from "./auth";
 
 // Unggah gambar ke backend (multer). Yang disimpan di data kabar hanya
@@ -14,23 +14,30 @@ export interface BerkasTerunggah {
 export const UKURAN_MAKS_MB = 5;
 export const MAKS_GAMBAR_SEKALIGUS = 5;
 
+// Unggahan terbesar 5 berkas x 5 MB = 25 MB. Di koneksi seluler sekitar
+// 5 Mbps itu butuh kurang lebih 40 detik, jadi batasnya jauh lebih longgar
+// daripada permintaan JSON biasa.
+const BATAS_WAKTU_UNGGAH_MS = 120_000;
+
 // FormData tidak boleh diberi Content-Type manual: browser perlu menyisipkan
 // boundary-nya sendiri, jadi permintaan ini tidak lewat apiFetch.
 async function kirimBerkas<T>(jalur: string, form: FormData): Promise<T> {
   const token = ambilToken();
 
   let res: Response;
+  let teks: string;
   try {
     res = await fetch(`${DASAR_API}${jalur}`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: form,
+      signal: AbortSignal.timeout(BATAS_WAKTU_UNGGAH_MS),
     });
-  } catch {
-    throw new KesalahanApi(0, "Tidak bisa menghubungi server saat mengunggah gambar.");
+    teks = await res.text();
+  } catch (err) {
+    throw kesalahanJaringan(err, "Tidak bisa menghubungi server saat mengunggah gambar.");
   }
 
-  const teks = await res.text();
   let isi: unknown = null;
   if (teks !== "") {
     try {
@@ -73,6 +80,7 @@ export async function hapusGambarTerunggah(namaBerkas: string): Promise<void> {
     await fetch(`${DASAR_API}/api/unggah/${namaBerkas}`, {
       method: "DELETE",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: AbortSignal.timeout(BATAS_WAKTU_MS),
     });
   } catch {
     // Gagal membersihkan bukan alasan untuk menggagalkan pekerjaan admin

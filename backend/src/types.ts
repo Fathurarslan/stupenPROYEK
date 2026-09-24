@@ -1,4 +1,4 @@
-// Bentuk baris tiap tabel, mengikuti src/db/SCHEMA.sql
+// Bentuk baris tiap tabel, mengikuti src/db/SCHEMA.sql ditambah src/db/migrations/
 
 export const JENIS_KABAR = ["berita", "pengumuman"] as const;
 export type JenisKabar = (typeof JENIS_KABAR)[number];
@@ -22,11 +22,6 @@ export interface KabarGambar {
     gambar_url: string;
     urutan: number | null;
     created_at: Date;
-}
-
-// Kabar beserta daftar gambar tambahannya (hasil json_agg)
-export interface KabarLengkap extends Kabar {
-    gambar_lain: Pick<KabarGambar, "id" | "gambar_url" | "urutan">[];
 }
 
 // Tingkat 1 hanya boleh diisi satu orang (Kepala Kelurahan), tingkat 2 dan 3

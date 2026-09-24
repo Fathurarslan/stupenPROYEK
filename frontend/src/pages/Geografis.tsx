@@ -1,5 +1,17 @@
-import PetakSawah from "../components/PetakSawah";
 import { BATAS_WILAYAH, FAKTA_GEOGRAFIS } from "../data/geografis";
+// Peta Google Maps yang disematkan: bisa diperbesar, diperkecil, dan digeser,
+// tanpa pustaka tambahan maupun API key.
+//
+// Harus URL /maps/embed. Link bagikan (maps.app.goo.gl/...) atau alamat
+// google.com/maps/place/... TIDAK bisa dipakai: Google mengirim header
+// X-Frame-Options: SAMEORIGIN untuk halaman itu, sehingga browser menolak
+// menampilkannya di iframe dan kotak petanya kosong.
+//
+// Koordinat pin diambil dari lokasi "Kantor Kelurahan Sidoharjo Kec. Lamongan"
+// di Google Maps. Angka setelah !6i adalah tingkat zoom awal (17 = sekitar
+// tingkat jalan; kecilkan untuk memperlihatkan wilayah yang lebih luas).
+const KOORDINAT_KANTOR = "-7.1280449,112.4137123";
+const URL_PETA = `https://www.google.com/maps/embed?origin=mfe&pb=!1m3!2m1!1s${KOORDINAT_KANTOR}!6i17`;
 
 export default function Geografis() {
   return (
@@ -24,7 +36,16 @@ export default function Geografis() {
             </div>
           ))}
         </div>
-        <PetakSawah />
+        {/* loading="lazy": peta baru dimuat saat mendekati layar, jadi tidak
+            memperlambat bagian atas halaman */}
+        <iframe
+          src={URL_PETA}
+          title="Peta lokasi Kantor Kelurahan Sidoharjo"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          allowFullScreen
+          className="aspect-[4/3] w-full rounded-lg border border-garis bg-kabut"
+        />
       </div>
 
       <section className="mb-16" aria-label="Batas wilayah">

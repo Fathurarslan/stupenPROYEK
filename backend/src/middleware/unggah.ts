@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import multer from "multer";
 import { KesalahanInput } from "../utils/kesalahan.js";
+import { POLA_NAMA_BERKAS } from "../utils/validasi.js";
 
 // Folder ini ada di backend/uploads, baik saat dijalankan lewat tsx (src/)
 // maupun setelah di-build (dist/), karena dua-duanya satu tingkat di bawah root.
@@ -93,10 +94,8 @@ export async function pastikanGambarAsli(berkas: Express.Multer.File) {
 
 // Nama berkas selalu UUID + ekstensi. Pola ketat ini yang mencegah
 // permintaan seperti DELETE /api/unggah/..%2F..%2F.env
-const POLA_NAMA = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|gif)$/;
-
 export function pastikanNamaBerkasAman(nama: unknown): string {
-    if (typeof nama !== "string" || !POLA_NAMA.test(nama)) {
+    if (typeof nama !== "string" || !POLA_NAMA_BERKAS.test(nama)) {
         throw new KesalahanInput("Nama berkas tidak valid");
     }
     return nama;
@@ -111,5 +110,5 @@ export function namaBerkasDariUrl(url: string | null | undefined): string | null
         return null;
     }
     const nama = url.slice("/upload/".length);
-    return POLA_NAMA.test(nama) ? nama : null;
+    return POLA_NAMA_BERKAS.test(nama) ? nama : null;
 }
