@@ -1,5 +1,4 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { useAdmin } from "./KonteksAdmin";
 import Notifikasi from "./Notifikasi";
 import TombolKeluar from "./TombolKeluar";
 
@@ -12,7 +11,6 @@ const MENU = [
 ];
 
 export default function AdminLayout() {
-  const admin = useAdmin();
 
   return (
     <div className="flex min-h-screen bg-kabut max-[860px]:flex-col">
@@ -21,9 +19,7 @@ export default function AdminLayout() {
         <div className="px-5 py-6">
           <div className="font-heading text-[18px]">Admin Kelurahan</div>
           <div className="text-[13px] opacity-70">Sidoharjo</div>
-          <div className="mt-3 truncate text-[12px] text-white/70" title={admin.email}>
-            Masuk sebagai {admin.email}
-          </div>
+          <hr className="mt-3" />
         </div>
         <nav className="flex flex-1 flex-col gap-1 px-3 max-[860px]:flex-row max-[860px]:flex-wrap">
           {MENU.map((m) => (

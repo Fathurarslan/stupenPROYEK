@@ -47,6 +47,27 @@
   .notif-masuk {
     animation: notif-masuk 180ms ease-out;
   }
+
+  /* Pita teks berjalan di bawah Hero, lihat components/Hero.tsx. Isinya dua
+     salinan yang identik, jadi geser -50% berarti tepat satu salinan dan
+     putarannya menyambung tanpa lompatan. Berhenti saat disorot kursor
+     supaya tetap bisa dibaca. */
+  .pita-berjalan {
+    animation: pita-berjalan 40s linear infinite;
+  }
+
+  .pita-berjalan:hover {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes pita-berjalan {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 @keyframes notif-masuk {
@@ -61,7 +82,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .notif-masuk {
+  .notif-masuk,
+  .pita-berjalan {
     animation: none;
   }
 }

@@ -3,11 +3,11 @@ import { Link } from "react-router-dom";
 import { useKabar } from "../hooks/useKabar";
 import { urlPenuh } from "../lib/api";
 import { formatTanggal } from "../lib/tanggal";
-import type { KabarItem } from "../types/kelurahan";
+import type { KabarRingkas } from "../types/kelurahan";
 import KabarCarousel from "./KabarCarousel";
 
 // Sepuluh kabar per halaman. Data sudah datang urut tanggal terbaru dulu
-// (ORDER BY tanggal_upload DESC di backend), jadi kabar baru selalu di
+// (ORDER BY tanggal_upload DESC, id DESC di backend), jadi kabar baru selalu di
 // halaman 1 dan yang lama mundur ke halaman berikutnya.
 const PER_HALAMAN = 10;
 
@@ -83,7 +83,7 @@ export default function Kabar() {
   );
 }
 
-function KartuKabar({ kabar: k }: { kabar: KabarItem }) {
+function KartuKabar({ kabar: k }: { kabar: KabarRingkas }) {
   return (
     <Link
       to={`/kabar/${k.id}`}

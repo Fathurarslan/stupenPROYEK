@@ -9,6 +9,7 @@ import {
     ambilTingkatJabatan,
     teksOpsional,
     teksWajib,
+    urlUnggahanOpsional,
 } from "../utils/validasi.js";
 
 const router = Router();
@@ -17,9 +18,9 @@ const router = Router();
 // lalu tingkat 2, lalu tingkat 3, sesuai urutan kartu di halaman publik.
 const URUTAN = "ORDER BY tingkat ASC, id ASC";
 
-// Kolom yang boleh dilihat publik. Ditulis satu per satu, bukan SELECT *,
-// supaya kolom yang ditambahkan nanti tidak otomatis ikut terkirim ke halaman
-// publik. created_at dan updated_at sengaja tidak masuk: tidak dipakai
+// Kolom yang boleh dilihat publik, juga dipakai untuk RETURNING sesudah
+// INSERT/UPDATE. Ditulis satu per satu, bukan SELECT * atau RETURNING *,
+// supaya kolom yang ditambahkan nanti tidak otomatis ikut terkirim. created_at dan updated_at sengaja tidak masuk: tidak dipakai
 // frontend, dan updated_at membocorkan kapan sebuah data diam-diam diubah.
 // nip tetap ditampilkan, sesuai kelaziman situs pemerintahan.
 const KOLOM_PUBLIK = "id, foto, nama_jabatan, nama_pejabat, nip, tingkat";
@@ -69,7 +70,7 @@ router.get("/:id", async (req, res) => {
 // POST /api/struktur-jabatan
 router.post("/", wajibLogin, async (req, res) => {
     const body = ambilBody(req.body);
-    const foto = teksOpsional(body.foto, "foto", 255);
+    const foto = urlUnggahanOpsional(body.foto, "foto");
     const nama_jabatan = teksWajib(body.nama_jabatan, "nama_jabatan", 100);
     const nama_pejabat = teksWajib(body.nama_pejabat, "nama_pejabat", 100);
     const nip = teksOpsional(body.nip, "nip", 50);
@@ -81,10 +82,10 @@ router.post("/", wajibLogin, async (req, res) => {
     }
 
     try {
-        const hasil = await pool.query<StrukturJabatan>(
+        const hasil = await pool.query<StrukturPublik>(
             `INSERT INTO struktur_jabatan (foto, nama_jabatan, nama_pejabat, nip, tingkat)
              VALUES ($1, $2, $3, $4, $5)
-             RETURNING *`,
+             RETURNING ${KOLOM_PUBLIK}`,
             [foto, nama_jabatan, nama_pejabat, nip, tingkat]
         );
         res.status(201).json(hasil.rows[0]);
@@ -101,7 +102,7 @@ router.post("/", wajibLogin, async (req, res) => {
 router.put("/:id", wajibLogin, async (req, res) => {
     const id = ambilId(req.params.id);
     const body = ambilBody(req.body);
-    const foto = teksOpsional(body.foto, "foto", 255);
+    const foto = urlUnggahanOpsional(body.foto, "foto");
     const nama_jabatan = teksWajib(body.nama_jabatan, "nama_jabatan", 100);
     const nama_pejabat = teksWajib(body.nama_pejabat, "nama_pejabat", 100);
     const nip = teksOpsional(body.nip, "nip", 50);
@@ -124,11 +125,11 @@ router.put("/:id", wajibLogin, async (req, res) => {
 
     let hasil;
     try {
-        hasil = await pool.query<StrukturJabatan>(
+        hasil = await pool.query<StrukturPublik>(
             `UPDATE struktur_jabatan
              SET foto = $1, nama_jabatan = $2, nama_pejabat = $3, nip = $4, tingkat = $5
              WHERE id = $6
-             RETURNING *`,
+             RETURNING ${KOLOM_PUBLIK}`,
             [foto, nama_jabatan, nama_pejabat, nip, tingkat, id]
         );
     } catch (err) {

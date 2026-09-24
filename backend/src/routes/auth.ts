@@ -6,7 +6,7 @@ import { adminSaatIni, wajibLogin } from "../middleware/autentikasi.js";
 import { batasLogin, batasSensitif } from "../middleware/batasPermintaan.js";
 import { KesalahanAuth } from "../utils/kesalahan.js";
 import { buatToken } from "../utils/token.js";
-import { ambilBody, ambilEmail, ambilPassword } from "../utils/validasi.js";
+import { ambilBody, ambilEmail, ambilPassword, passwordUntukDicocokkan } from "../utils/validasi.js";
 
 const router = Router();
 
@@ -37,8 +37,9 @@ export interface BarisSesiRingkas {
 router.post("/login", batasLogin, async (req, res) => {
     const body = ambilBody(req.body);
     const email = ambilEmail(body.email);
-    // Password saat login tidak divalidasi panjangnya, cukup harus berupa teks
-    const password = typeof body.password === "string" ? body.password : "";
+    // null berarti password tidak mungkin benar (kosong atau di atas 72 byte),
+    // dijawab dengan 401 yang sama seperti password salah
+    const password = passwordUntukDicocokkan(body.password);
 
     const hasil = await pool.query<BarisAdmin>(
         "SELECT id, email, password_hash FROM admin WHERE email = $1",
@@ -46,7 +47,10 @@ router.post("/login", batasLogin, async (req, res) => {
     );
     const admin = hasil.rows[0];
 
-    const cocok = await bcrypt.compare(password, admin?.password_hash ?? HASH_UMPAN);
+    // Saat password null, bcrypt dilewati baik untuk email yang ada maupun
+    // tidak, jadi selisih waktunya tidak membocorkan email admin
+    const cocok =
+        password !== null && (await bcrypt.compare(password, admin?.password_hash ?? HASH_UMPAN));
 
     // Pesan disamakan untuk email salah dan password salah, jangan bocorkan mana yang salah
     if (!admin || !cocok) {
@@ -154,7 +158,7 @@ router.get("/saya", wajibLogin, async (req, res) => {
 router.put("/password", batasSensitif, wajibLogin, async (req, res) => {
     const { id, jti } = adminSaatIni(req);
     const body = ambilBody(req.body);
-    const password_lama = typeof body.password_lama === "string" ? body.password_lama : "";
+    const password_lama = passwordUntukDicocokkan(body.password_lama);
     const password_baru = ambilPassword(body.password_baru, "password_baru");
 
     const hasil = await pool.query<BarisAdmin>(
@@ -166,7 +170,7 @@ router.put("/password", batasSensitif, wajibLogin, async (req, res) => {
         throw new KesalahanAuth("Admin pada token ini sudah tidak ada");
     }
 
-    if (!(await bcrypt.compare(password_lama, admin.password_hash))) {
+    if (password_lama === null || !(await bcrypt.compare(password_lama, admin.password_hash))) {
         throw new KesalahanAuth("Password lama salah");
     }
 
@@ -206,7 +210,7 @@ router.put("/email", batasSensitif, wajibLogin, async (req, res) => {
     const { id } = adminSaatIni(req);
     const body = ambilBody(req.body);
     const email_baru = ambilEmail(body.email_baru);
-    const password = typeof body.password === "string" ? body.password : "";
+    const password = passwordUntukDicocokkan(body.password);
 
     const hasil = await pool.query<BarisAdmin>(
         "SELECT id, email, password_hash FROM admin WHERE id = $1",
@@ -217,7 +221,7 @@ router.put("/email", batasSensitif, wajibLogin, async (req, res) => {
         throw new KesalahanAuth("Admin pada token ini sudah tidak ada");
     }
 
-    if (!(await bcrypt.compare(password, admin.password_hash))) {
+    if (password === null || !(await bcrypt.compare(password, admin.password_hash))) {
         throw new KesalahanAuth("Password salah");
     }
 

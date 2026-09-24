@@ -1,6 +1,6 @@
 import { TINGKAT_JABATAN, type TingkatJabatan } from "../types/kelurahan";
-import type { KabarItem, PendudukStat, PerangkatItem } from "../types/kelurahan";
-import { apiFetch } from "./api";
+import type { KabarItem, KabarRingkas, PendudukStat, PerangkatItem } from "../types/kelurahan";
+import { apiFetch, KesalahanApi } from "./api";
 import { ambilToken } from "./auth";
 import { keTanggalInput } from "./tanggal";
 
@@ -10,26 +10,37 @@ import { keTanggalInput } from "./tanggal";
 
 // ============================== KABAR ==============================
 
-interface KabarApi {
+// Bentuk satu kabar di GET /api/kabar (daftar)
+interface KabarRingkasApi {
   id: number;
   jenis: "berita" | "pengumuman";
   judul: string;
   tanggal_upload: string;
   gambar_utama: string;
   ringkasan: string | null;
+}
+
+// Bentuk di GET /api/kabar/:id dan balasan simpan
+interface KabarApi extends KabarRingkasApi {
   deskripsi_lengkap: string;
   gambar_lain?: { id: number; gambar_url: string; urutan: number | null }[];
 }
 
-function keKabarItem(api: KabarApi): KabarItem {
+function keKabarRingkas(api: KabarRingkasApi): KabarRingkas {
   return {
     id: String(api.id),
     jenis: api.jenis === "pengumuman" ? "Pengumuman" : "Berita",
     tanggal: keTanggalInput(api.tanggal_upload),
     judul: api.judul,
     ringkas: api.ringkasan ?? "",
-    deskripsi: api.deskripsi_lengkap,
     gambar: api.gambar_utama,
+  };
+}
+
+function keKabarItem(api: KabarApi): KabarItem {
+  return {
+    ...keKabarRingkas(api),
+    deskripsi: api.deskripsi_lengkap,
     gambarLain: (api.gambar_lain ?? []).map((g) => g.gambar_url),
   };
 }
@@ -46,9 +57,41 @@ function keBodyKabar(item: Omit<KabarItem, "id">) {
   };
 }
 
-export async function muatKabar(): Promise<KabarItem[]> {
-  const hasil = await apiFetch<{ data: KabarApi[] }>("/api/kabar?limit=100");
-  return hasil.data.map(keKabarItem);
+// Batas ?limit di backend (MAKS_LIMIT di routes/kabar.ts), harus sama
+const PER_PERMINTAAN = 100;
+
+// Dulu hanya satu permintaan ?limit=100, jadi begitu kabar lebih dari 100 yang
+// paling lama hilang diam-diam, termasuk dari tabel admin sehingga tidak bisa
+// diubah atau dihapus lagi. Sekarang dimuat per 100 sampai habis. Ini wajar
+// karena daftarnya sudah ringkas (tanpa isi lengkap), sekitar 1 KB per kabar.
+export async function muatKabar(): Promise<KabarRingkas[]> {
+  // Dikumpulkan per id: kalau ada kabar baru masuk di antara dua permintaan,
+  // semua baris bergeser satu dan satu kabar terbaca dua kali
+  const terkumpul = new Map<number, KabarRingkasApi>();
+  let offset = 0;
+
+  for (;;) {
+    const hasil = await apiFetch<{ data: KabarRingkasApi[]; total: number }>(
+      `/api/kabar?limit=${PER_PERMINTAAN}&offset=${offset}`,
+    );
+    for (const k of hasil.data) terkumpul.set(k.id, k);
+    offset += hasil.data.length;
+    if (hasil.data.length < PER_PERMINTAAN || offset >= hasil.total) break;
+  }
+
+  return [...terkumpul.values()].map(keKabarRingkas);
+}
+
+// null berarti kabarnya tidak ada. 400 ikut dianggap begitu karena id di URL
+// yang bukan angka (misalnya /kabar/abc) memang tidak menunjuk kabar apa pun.
+export async function muatKabarLengkap(id: string): Promise<KabarItem | null> {
+  try {
+    const hasil = await apiFetch<KabarApi>(`/api/kabar/${encodeURIComponent(id)}`);
+    return keKabarItem(hasil);
+  } catch (err) {
+    if (err instanceof KesalahanApi && (err.status === 404 || err.status === 400)) return null;
+    throw err;
+  }
 }
 
 export async function buatKabar(item: Omit<KabarItem, "id">): Promise<KabarItem> {
@@ -151,9 +194,9 @@ interface PendudukApi {
   total: number;
 }
 
-// Tabel penduduk menyimpan riwayat (satu baris per pembaruan), yang dipakai
-// halaman publik adalah baris terbaru. id-nya disimpan supaya penyimpanan
-// berikutnya memperbarui baris yang sama, bukan menumpuk baris baru.
+// Tabel penduduk hanya berisi satu baris (dijaga database). id-nya disimpan
+// supaya penyimpanan berikutnya memperbarui baris yang sama lewat PUT, bukan
+// mencoba POST baris kedua yang pasti ditolak.
 export interface DataPenduduk {
   id: number | null;
   stat: PendudukStat;
@@ -165,9 +208,14 @@ export const PENDUDUK_KOSONG: DataPenduduk = {
 };
 
 export async function muatPenduduk(): Promise<DataPenduduk> {
-  const hasil = await apiFetch<PendudukApi[]>("/api/penduduk");
-  const terbaru = hasil[0];
-  if (!terbaru) return PENDUDUK_KOSONG;
+  let terbaru: PendudukApi;
+  try {
+    terbaru = await apiFetch<PendudukApi>("/api/penduduk/terbaru");
+  } catch (err) {
+    // 404 berarti tabelnya memang masih kosong, bukan kegagalan
+    if (err instanceof KesalahanApi && err.status === 404) return PENDUDUK_KOSONG;
+    throw err;
+  }
 
   return {
     id: terbaru.id,

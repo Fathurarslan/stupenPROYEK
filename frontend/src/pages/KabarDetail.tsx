@@ -1,12 +1,21 @@
 import { Link, useParams } from "react-router-dom";
-import { useKabar } from "../hooks/useKabar";
+import { useKabar, useKabarLengkap } from "../hooks/useKabar";
 import { urlPenuh } from "../lib/api";
 import { formatTanggal } from "../lib/tanggal";
 
+// key={id} supaya pindah dari satu kabar ke kabar lain (lewat "Kabar lainnya")
+// memasang komponen baru yang mulai dari keadaan memuat, bukan sempat
+// menampilkan isi kabar sebelumnya
 export default function KabarDetail() {
-  const { id } = useParams();
-  const { kabar, memuat, error } = useKabar();
-  const item = kabar.find((k) => k.id === id);
+  const { id = "" } = useParams();
+  return <IsiKabar key={id} id={id} />;
+}
+
+function IsiKabar({ id }: { id: string }) {
+  // Isi lengkap diambil sendiri dari /api/kabar/:id, karena daftar kabar
+  // sekarang hanya membawa ringkasan. Daftar tetap dipakai untuk "Kabar lainnya".
+  const { data: item, memuat, error } = useKabarLengkap(id);
+  const { kabar } = useKabar();
 
   // Data datang dari backend, jadi jangan bilang "tidak ditemukan"
   // sebelum pemuatannya selesai

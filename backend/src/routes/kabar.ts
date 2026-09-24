@@ -1,7 +1,7 @@
 import { Router } from "express";
 import pool from "../db/pool.js";
 import { adminSaatIni, wajibLogin } from "../middleware/autentikasi.js";
-import type { Kabar, KabarGambar, KabarLengkap } from "../types.js";
+import type { Kabar, KabarGambar } from "../types.js";
 import { hapusBerkasTakTerpakai } from "../utils/berkas.js";
 import { KesalahanInput } from "../utils/kesalahan.js";
 import {
@@ -12,27 +12,43 @@ import {
     tanggalOpsional,
     teksOpsional,
     teksWajib,
+    urlUnggahanWajib,
 } from "../utils/validasi.js";
 
 const router = Router();
 
 // Batas tertinggi yang boleh diminta lewat ?limit, bukan ukuran halaman.
-// Angkanya 100 karena itu yang diminta frontend di lib/konten.ts; kalau di
-// sana dinaikkan, angka ini harus ikut naik. Tanpa batas, siapa pun bisa
-// memanggil /api/kabar?limit=999999999 dan memaksa seluruh isi tabel
-// dirangkai jadi satu JSON, padahal rute ini publik tanpa login.
+// Tanpa batas, siapa pun bisa memanggil /api/kabar?limit=999999999 dan
+// memaksa seluruh isi tabel dirangkai jadi satu JSON, padahal rute ini publik
+// tanpa login. Frontend (lib/konten.ts) memuat per 100 lalu lanjut ke
+// halaman berikutnya, jadi angka ini harus sama dengan PER_PERMINTAAN di sana.
 const MAKS_LIMIT = 100;
 
-// Harus sama dengan trigger cek_maksimal_gambar di db/SCHEMA.sql dan
+// Harus sama dengan constraint kabar_gambar_urutan_check (urutan 0..4) di
+// db/migrations/003_integritas_data.sql dan
 // MAKS_GAMBAR_LAIN di frontend/src/pages/admin/TambahBerita.tsx
 const MAKS_GAMBAR_LAIN = 5;
 
 // Sekitar 7 halaman A4, jauh di atas kebutuhan artikel kelurahan. Kolomnya
 // TEXT di database, jadi tanpa batas ini satu-satunya rem adalah ukuran body
-// JSON, padahal teks ini ikut terkirim di daftar kabar yang bersifat publik.
+// JSON.
 const MAKS_DESKRIPSI = 20000;
 
-// Dipakai bersama oleh rute daftar dan rute detail.
+// Kolom untuk rute daftar: hanya yang dipakai kartu dan carousel di beranda.
+// deskripsi_lengkap dan galeri sengaja tidak ikut. Dulu keduanya terkirim
+// untuk setiap kabar di daftar, jadi tiap kunjungan beranda ikut mengunduh
+// isi lengkap semua artikel yang tidak pernah ditampilkan di sana. Isi
+// lengkap hanya dikirim GET /api/kabar/:id, saat satu kabar dibuka.
+const KOLOM_RINGKAS = "k.id, k.jenis, k.judul, k.tanggal_upload, k.gambar_utama, k.ringkasan";
+
+// Urutan daftar. k.id sebagai pengurut kedua itu wajib, bukan hiasan: tanggal
+// dari form admin hanya sampai hari, jadi banyak kabar berbagi tanggal_upload
+// yang persis sama. Tanpa pengurut kedua, PostgreSQL bebas menyusun kabar
+// bertanggal sama secara berbeda di tiap query, sehingga saat daftar dimuat
+// per halaman satu kabar bisa muncul dua kali dan kabar lain hilang.
+const URUTAN_DAFTAR = "ORDER BY k.tanggal_upload DESC, k.id DESC";
+
+// Dipakai rute detail.
 //
 // Kolomnya ditulis satu per satu, bukan k.*, supaya kolom yang ditambahkan
 // nanti tidak otomatis ikut terkirim ke halaman publik. Yang sengaja tidak
@@ -52,6 +68,18 @@ const PILIH_KABAR_LENGKAP = `
     LEFT JOIN kabar_gambar kg ON kg.kabar_id = k.id
 `;
 
+// Kolom yang dikembalikan sesudah INSERT/UPDATE, bukan RETURNING *. Isinya
+// disamakan dengan PILIH_KABAR_LENGKAP supaya balasan tulis dan balasan baca
+// berbentuk sama, dan kolom yang ditambahkan nanti tidak ikut terkirim
+// sebelum ada yang sengaja memasukkannya ke sini.
+const KOLOM_KABAR = "id, jenis, judul, tanggal_upload, gambar_utama, ringkasan, deskripsi_lengkap";
+const KOLOM_GAMBAR = "id, gambar_url, urutan";
+
+type KabarPublik = Omit<Kabar, "admin_id" | "created_at" | "updated_at">;
+type GambarPublik = Pick<KabarGambar, "id" | "gambar_url" | "urutan">;
+type KabarRingkas = Omit<KabarPublik, "deskripsi_lengkap">;
+type KabarLengkap = KabarPublik & { gambar_lain: GambarPublik[] };
+
 function daftarGambar(nilai: unknown): string[] {
     if (nilai === undefined || nilai === null) {
         return [];
@@ -59,13 +87,13 @@ function daftarGambar(nilai: unknown): string[] {
     if (!Array.isArray(nilai)) {
         throw new KesalahanInput("Kolom gambar_lain harus berupa array berisi URL gambar");
     }
-    // Dicegat di sini, bukan dibiarkan sampai ke trigger database, supaya
+    // Dicegat di sini, bukan dibiarkan sampai ke constraint database, supaya
     // tidak ada transaksi yang sudah terbuka dan menyisipkan beberapa baris
     // lalu dibatalkan di tengah jalan
     if (nilai.length > MAKS_GAMBAR_LAIN) {
         throw new KesalahanInput(`Kolom gambar_lain maksimal ${MAKS_GAMBAR_LAIN} gambar`);
     }
-    return nilai.map((url, i) => teksWajib(url, `gambar_lain[${i}]`, 255));
+    return nilai.map((url, i) => urlUnggahanWajib(url, `gambar_lain[${i}]`));
 }
 
 // GET /api/kabar?jenis=berita&limit=10&offset=0
@@ -82,11 +110,11 @@ router.get("/", async (req, res) => {
     const offset = req.query.offset === undefined ? 0 : bulatTakNegatif(req.query.offset, "offset");
     nilaiParam.push(limit, offset);
 
-    const hasil = await pool.query<KabarLengkap>(
-        `${PILIH_KABAR_LENGKAP}
+    const hasil = await pool.query<KabarRingkas>(
+        `SELECT ${KOLOM_RINGKAS}
+         FROM kabar k
          ${filter}
-         GROUP BY k.id
-         ORDER BY k.tanggal_upload DESC
+         ${URUTAN_DAFTAR}
          LIMIT $${nilaiParam.length - 1} OFFSET $${nilaiParam.length}`,
         nilaiParam
     );
@@ -128,7 +156,7 @@ router.post("/", wajibLogin, async (req, res) => {
     const body = ambilBody(req.body);
     const jenis = ambilJenisKabar(body.jenis);
     const judul = teksWajib(body.judul, "judul", 200);
-    const gambar_utama = teksWajib(body.gambar_utama, "gambar_utama", 255);
+    const gambar_utama = urlUnggahanWajib(body.gambar_utama, "gambar_utama");
     const ringkasan = teksOpsional(body.ringkasan, "ringkasan", 500);
     const deskripsi_lengkap = teksWajib(body.deskripsi_lengkap, "deskripsi_lengkap", MAKS_DESKRIPSI);
     const gambar_lain = daftarGambar(body.gambar_lain);
@@ -142,10 +170,10 @@ router.post("/", wajibLogin, async (req, res) => {
     try {
         await client.query("BEGIN");
 
-        const hasil = await client.query<Kabar>(
+        const hasil = await client.query<KabarPublik>(
             `INSERT INTO kabar (jenis, judul, gambar_utama, ringkasan, deskripsi_lengkap, admin_id, tanggal_upload)
              VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::timestamp, NOW()))
-             RETURNING *`,
+             RETURNING ${KOLOM_KABAR}`,
             [jenis, judul, gambar_utama, ringkasan, deskripsi_lengkap, admin_id, tanggal_upload]
         );
 
@@ -154,12 +182,12 @@ router.post("/", wajibLogin, async (req, res) => {
             throw new Error("INSERT kabar tidak mengembalikan baris");
         }
 
-        const gambarTersimpan: KabarGambar[] = [];
+        const gambarTersimpan: GambarPublik[] = [];
         for (const [urutan, gambar_url] of gambar_lain.entries()) {
-            const tambahan = await client.query<KabarGambar>(
+            const tambahan = await client.query<GambarPublik>(
                 `INSERT INTO kabar_gambar (kabar_id, gambar_url, urutan)
                  VALUES ($1, $2, $3)
-                 RETURNING *`,
+                 RETURNING ${KOLOM_GAMBAR}`,
                 [kabar.id, gambar_url, urutan]
             );
             if (tambahan.rows[0]) {
@@ -185,7 +213,7 @@ router.put("/:id", wajibLogin, async (req, res) => {
     const body = ambilBody(req.body);
     const jenis = ambilJenisKabar(body.jenis);
     const judul = teksWajib(body.judul, "judul", 200);
-    const gambar_utama = teksWajib(body.gambar_utama, "gambar_utama", 255);
+    const gambar_utama = urlUnggahanWajib(body.gambar_utama, "gambar_utama");
     const ringkasan = teksOpsional(body.ringkasan, "ringkasan", 500);
     const deskripsi_lengkap = teksWajib(body.deskripsi_lengkap, "deskripsi_lengkap", MAKS_DESKRIPSI);
     const tanggal_upload = tanggalOpsional(body.tanggal_upload, "tanggal_upload");
@@ -207,12 +235,12 @@ router.put("/:id", wajibLogin, async (req, res) => {
         );
         gambarLama = sebelum.rows.map((r) => r.url);
 
-        const hasil = await client.query<Kabar>(
+        const hasil = await client.query<KabarPublik>(
             `UPDATE kabar
              SET jenis = $1, judul = $2, gambar_utama = $3, ringkasan = $4,
                  deskripsi_lengkap = $5, tanggal_upload = COALESCE($6::timestamp, tanggal_upload)
              WHERE id = $7
-             RETURNING *`,
+             RETURNING ${KOLOM_KABAR}`,
             [jenis, judul, gambar_utama, ringkasan, deskripsi_lengkap, tanggal_upload, id]
         );
 
@@ -223,17 +251,17 @@ router.put("/:id", wajibLogin, async (req, res) => {
             return;
         }
 
-        const gambarTersimpan: KabarGambar[] = [];
+        const gambarTersimpan: GambarPublik[] = [];
         if (gantiGaleri) {
-            // Dikosongkan dulu supaya trigger batas 5 menghitung dari nol,
-            // bukan dari jumlah gambar lama ditambah yang baru
+            // Dikosongkan dulu supaya urutan 0..4 yang baru tidak bentrok
+            // dengan UNIQUE (kabar_id, urutan) milik gambar lama
             await client.query("DELETE FROM kabar_gambar WHERE kabar_id = $1", [id]);
 
             for (const [urutan, gambar_url] of gambar_lain.entries()) {
-                const tambahan = await client.query<KabarGambar>(
+                const tambahan = await client.query<GambarPublik>(
                     `INSERT INTO kabar_gambar (kabar_id, gambar_url, urutan)
                      VALUES ($1, $2, $3)
-                     RETURNING *`,
+                     RETURNING ${KOLOM_GAMBAR}`,
                     [id, gambar_url, urutan]
                 );
                 if (tambahan.rows[0]) {
@@ -312,7 +340,7 @@ router.delete("/:id", wajibLogin, async (req, res) => {
 router.post("/:id/gambar", wajibLogin, async (req, res) => {
     const kabar_id = ambilId(req.params.id);
     const body = ambilBody(req.body);
-    const gambar_url = teksWajib(body.gambar_url, "gambar_url", 255);
+    const gambar_url = urlUnggahanWajib(body.gambar_url, "gambar_url");
     const urutan =
         body.urutan === undefined
             ? null
@@ -330,12 +358,12 @@ router.post("/:id/gambar", wajibLogin, async (req, res) => {
         );
     }
 
-    const hasil = await pool.query<KabarGambar>(
+    const hasil = await pool.query<GambarPublik>(
         `INSERT INTO kabar_gambar (kabar_id, gambar_url, urutan)
          VALUES ($1, $2, COALESCE($3::int, (
              SELECT COALESCE(max(urutan) + 1, 0) FROM kabar_gambar WHERE kabar_id = $1
          )))
-         RETURNING *`,
+         RETURNING ${KOLOM_GAMBAR}`,
         [kabar_id, gambar_url, urutan]
     );
     res.status(201).json(hasil.rows[0]);

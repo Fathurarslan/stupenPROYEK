@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { DATA_PENDUDUK, IDENTITAS_KELURAHAN } from "../data/profil";
+import fotoKantor from "../assets/foto-kantor.png";
 
 export default function Profil() {
   return (
@@ -17,9 +18,7 @@ export default function Profil() {
 
       <div className="mb-14 grid grid-cols-[1fr_1.2fr] items-start gap-10 max-[860px]:grid-cols-1">
         <figure className="m-0">
-          <div className="flex aspect-[4/3] items-center justify-center rounded-lg border border-garis bg-kabut text-center text-[14px] text-abu">
-            Foto Kantor Kelurahan Sidoharjo
-          </div>
+          <img src={fotoKantor} alt="Foto Kantor Kelurahan Sidoharjo" className="flex aspect-[4/3] items-center justify-center rounded-lg border border-garis bg-kabut text-center text-[14px] text-abu" />
         </figure>
 
         <div>

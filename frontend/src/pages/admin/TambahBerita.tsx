@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useKabar } from "../../hooks/useKabar";
+import { useKabar, useKabarLengkap } from "../../hooks/useKabar";
 import { urlPenuh } from "../../lib/api";
 import { notifGagalDari, notifSukses } from "../../lib/notifikasi";
 import {
@@ -21,27 +21,29 @@ function hariIni() {
   return `${sekarang.getFullYear()}-${bulan}-${hari}`;
 }
 
-// Data kabar dimuat dari backend, jadi saat mode ubah form baru dipasang
-// setelah datanya tiba. `key` membuat form ter-pasang ulang tiap ganti id,
-// sehingga nilai awalnya bisa langsung diturunkan dari data tanpa efek tambahan.
+// Mode tambah langsung memasang form kosong. Mode ubah memuat kabar lengkap
+// dari server dulu (daftar kabar tidak membawa isi lengkap), baru memasang
+// form dengan data itu sebagai nilai awal. `key` membuat semuanya terpasang
+// ulang tiap ganti id, sehingga nilai awal bisa langsung diturunkan dari data
+// tanpa efek tambahan.
 export default function TambahBerita() {
   const { id } = useParams();
-  const { cariById, memuat, error } = useKabar();
+  return id ? <MuatLaluUbah key={id} id={id} /> : <FormKabar key="baru" />;
+}
 
+function MuatLaluUbah({ id }: { id: string }) {
+  const { data, memuat, error } = useKabarLengkap(id);
+
+  if (memuat) {
+    return <p className="text-abu">Memuat data kabar…</p>;
+  }
   if (error) {
     return <p className="text-[14px] text-[#b3261e]">{error}</p>;
   }
-
-  if (id && memuat) {
-    return <p className="text-abu">Memuat data kabar…</p>;
-  }
-
-  const awal = id ? cariById(id) : undefined;
-  if (id && !awal) {
+  if (!data) {
     return <p className="text-abu">Kabar yang ingin diubah tidak ditemukan.</p>;
   }
-
-  return <FormKabar key={id ?? "baru"} id={id} awal={awal} />;
+  return <FormKabar id={id} awal={data} />;
 }
 
 function FormKabar({ id, awal }: { id?: string; awal?: KabarItem }) {

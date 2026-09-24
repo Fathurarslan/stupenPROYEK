@@ -58,6 +58,27 @@ function Label({ teks, anak }: { teks: string; anak: ReactNode }) {
   );
 }
 
+// Dipakai form password dan form email: membuat kolom password terlihat
+function CentangTampilkan({
+  tampilkan,
+  setTampilkan,
+}: {
+  tampilkan: boolean;
+  setTampilkan: (tampilkan: boolean) => void;
+}) {
+  return (
+    <label className="mb-4 flex w-fit cursor-pointer items-center gap-2 text-[13px] text-tinta">
+      <input
+        type="checkbox"
+        checked={tampilkan}
+        onChange={(e) => setTampilkan(e.target.checked)}
+        className="h-4 w-4 cursor-pointer accent-sawah"
+      />
+      Tampilkan password
+    </label>
+  );
+}
+
 const KELAS_INPUT = "w-full rounded-lg border border-garis px-3.5 py-2.5 text-[14px]";
 const KELAS_TOMBOL =
   "cursor-pointer rounded-md bg-sawah px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-daun disabled:cursor-wait disabled:opacity-60";
@@ -66,9 +87,13 @@ function FormPassword() {
   const [lama, setLama] = useState("");
   const [baru, setBaru] = useState("");
   const [ulangi, setUlangi] = useState("");
+  const [tampilkan, setTampilkan] = useState(false);
   const [menyimpan, setMenyimpan] = useState(false);
 
   const byteBaru = ukuranByte(baru);
+  // Satu pengaturan untuk ketiga kolom, supaya password baru dan ulangannya
+  // bisa dibandingkan langsung saat keduanya terlihat
+  const tipeInput = tampilkan ? "text" : "password";
 
   const kirim = async (e: FormEvent) => {
     e.preventDefault();
@@ -104,6 +129,8 @@ function FormPassword() {
       setLama("");
       setBaru("");
       setUlangi("");
+      // Disembunyikan lagi supaya pengisian berikutnya tidak langsung terlihat
+      setTampilkan(false);
       notifSukses(
         dicabut > 0
           ? `Password diganti. ${dicabut} perangkat lain ikut dikeluarkan.`
@@ -126,7 +153,7 @@ function FormPassword() {
             teks="Password lama"
             anak={
               <input
-                type="password"
+                type={tipeInput}
                 autoComplete="current-password"
                 value={lama}
                 onChange={(e) => setLama(e.target.value)}
@@ -138,7 +165,7 @@ function FormPassword() {
             teks="Password baru"
             anak={
               <input
-                type="password"
+                type={tipeInput}
                 autoComplete="new-password"
                 value={baru}
                 onChange={(e) => setBaru(e.target.value)}
@@ -150,7 +177,7 @@ function FormPassword() {
             teks="Ulangi password baru"
             anak={
               <input
-                type="password"
+                type={tipeInput}
                 autoComplete="new-password"
                 value={ulangi}
                 onChange={(e) => setUlangi(e.target.value)}
@@ -158,6 +185,8 @@ function FormPassword() {
               />
             }
           />
+
+          <CentangTampilkan tampilkan={tampilkan} setTampilkan={setTampilkan} />
 
           <p className="mb-4 text-[12px] text-abu">
             Minimal {MIN_KARAKTER} karakter, maksimal {MAKS_BYTE} byte
@@ -176,6 +205,7 @@ function FormPassword() {
 function FormEmail({ emailSekarang }: { emailSekarang: string }) {
   const [emailBaru, setEmailBaru] = useState("");
   const [password, setPassword] = useState("");
+  const [tampilkan, setTampilkan] = useState(false);
   const [menyimpan, setMenyimpan] = useState(false);
 
   const kirim = async (e: FormEvent) => {
@@ -195,6 +225,7 @@ function FormEmail({ emailSekarang }: { emailSekarang: string }) {
       const hasil = await gantiEmail(emailBaru, password);
       setEmailBaru("");
       setPassword("");
+      setTampilkan(false);
       notifSukses(`Email login diganti jadi ${hasil.email}. Pakai email ini untuk login berikutnya.`);
     } catch (err) {
       notifGagalDari(err, "Gagal mengganti email.");
@@ -226,7 +257,7 @@ function FormEmail({ emailSekarang }: { emailSekarang: string }) {
             teks="Password (untuk memastikan ini Anda)"
             anak={
               <input
-                type="password"
+                type={tampilkan ? "text" : "password"}
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -234,6 +265,7 @@ function FormEmail({ emailSekarang }: { emailSekarang: string }) {
               />
             }
           />
+          <CentangTampilkan tampilkan={tampilkan} setTampilkan={setTampilkan} />
           <button type="submit" disabled={menyimpan} className={KELAS_TOMBOL}>
             {menyimpan ? "Menyimpan…" : "Simpan Email"}
           </button>

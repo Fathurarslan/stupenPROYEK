@@ -31,6 +31,13 @@ export interface KabarItem {
 }
 
 /**
+ * Bentuk kabar di daftar (beranda, carousel, tabel admin). Isi lengkap dan
+ * galeri tidak ikut: keduanya hanya dimuat saat satu kabar dibuka, lewat
+ * useKabarLengkap.
+ */
+export type KabarRingkas = Omit<KabarItem, "deskripsi" | "gambarLain">;
+
+/**
  * Tingkat pada bagan struktur jabatan. Tingkat 1 hanya untuk satu orang
  * (Kepala Kelurahan), tingkat 2 dan 3 boleh diisi lebih dari satu.
  * Angkanya hanya mengatur urutan baris kartu, tulisan tingkatnya sendiri

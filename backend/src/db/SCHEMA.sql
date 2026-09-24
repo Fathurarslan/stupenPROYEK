@@ -2,6 +2,24 @@
 -- SCHEMA DATABASE WEBSITE KELURAHAN SIDOHARJO
 -- PostgreSQL
 -- =========================================================
+--
+-- PENTING: file ini hanya BENTUK AWAL database, bukan bentuk akhirnya.
+-- Bentuk yang benar = file ini + semua file di folder migrations/, yang
+-- dijalankan lewat "npm run db:migrate" (lihat DEPLOY.md). Menjalankan file
+-- ini saja akan menghasilkan database yang tidak cocok dengan kode.
+--
+-- Perubahan yang TIDAK tercermin di bawah:
+--   001_sesi_admin.sql      tabel sesi_admin (pencabutan token saat logout)
+--   002_tingkat_struktur.sql
+--                           kolom struktur_jabatan.tingkat (1/2/3, NOT NULL),
+--                           tingkat 1 hanya boleh satu baris
+--   003_integritas_data.sql trigger trg_maksimal_gambar DIHAPUS, diganti
+--                           constraint urutan 0..4 dan UNIQUE (kabar_id, urutan);
+--                           CHECK tidak kosong untuk kolom teks wajib;
+--                           CHECK penduduk laki_laki/perempuan >= 0;
+--                           admin dan penduduk hanya boleh satu baris;
+--                           kolom waktu NOT NULL
+--   004_batas_penduduk.sql  CHECK penduduk laki_laki/perempuan <= 1.000.000
 
 -- =========================================================
 -- 1. TABEL ADMIN (Login) - hanya 1 admin pengelola
