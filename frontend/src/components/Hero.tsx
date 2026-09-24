@@ -29,18 +29,18 @@ export default function Hero() {
       }}
       id="beranda"
     >
-      <div className="wrap grid grid-cols-[1.1fr_1fr] items-center gap-10 py-10 max-[860px]:grid-cols-1">
+      <div className="wrap grid grid-cols-[1.1fr_1fr] justify-center items-center gap-10 py-10 max-[860px]:grid-cols-1 max-[860px]:text-center">
         <div>
           <h1 className="font-heading text-[clamp(40px,6vw,72px)] leading-[1.1] font-extrabold tracking-[-0.02em]">
             Selamat Datang di Kelurahan Sidoharjo
           </h1>
-          <p className="mt-4.5 max-w-[34ch] text-[18px] opacity-90">
+          <p className="mt-4.5 max-w-[34ch] text-[18px] opacity-90 mx-auto">
             Baca kabar terbaru kelurahan Sidoharjo dari satu tempat.
           </p>
           <div className="mt-3 text-[14px] opacity-75">Jam kerja Senin s.d Jumat<br></br>Pukul 07.30 - 15.00 WIB</div>
         </div>
-        <div className="flex flex-col items-center gap-2 max-[860px]:items-start">
-          <img src={logoHero} alt="Logo Kelurahan Sidoharjo" className="w-full max-w-[250px] justify-self-end object-contain max-[860px]:justify-self-start" />
+        <div className="flex flex-col items-center gap-2">
+          <img src={logoHero} alt="Logo Kelurahan Sidoharjo" className="w-full max-w-62.5 justify-self-end object-contain" />
           <h1 className="text-[16px] text-center font-bold">
             Kelurahan Sidoharjo<br></br>
             <span className="text-[26px]">Kabupaten Lamongan</span>
